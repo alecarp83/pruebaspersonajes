@@ -1,103 +1,41 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#11131d">
-  <title>Clash Blocks | Catálogo 3D</title>
-  <link rel="stylesheet" href="./personajes.css">
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"
-      }
-    }
-  </script>
-</head>
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor de personaje 3D</title>
+<link rel="stylesheet" href="/src/style.css"></head>
 <body>
-  <canvas id="world" aria-hidden="true"></canvas>
-
-  <header class="header">
-    <a class="brand" href="./index.html" aria-label="Clash Blocks, inicio">
-      <span class="brand-icon" aria-hidden="true">♜</span>
-      <span>CLASH<span class="brand-light">BLOCKS</span></span>
-      <span class="brand-tag">3D</span>
-    </a>
-
-    <button id="animation" class="button ghost" aria-pressed="true">
-      <span class="status-dot"></span>
-      <span id="animation-label">Animación activa</span>
-    </button>
-  </header>
-
-  <main class="container">
-    <section class="intro">
-      <div>
-        <p class="eyebrow">ELIGE TU PRÓXIMA LEYENDA</p>
-        <h1>Pequeños bloques.<br><span>Grandes batallas.</span></h1>
-        <p class="description">
-          Ocho guerreros, una nueva dimensión. Explora la colección,
-          gira los personajes y descubre cada detalle.
-        </p>
-      </div>
-      <div class="collection-label" aria-label="8 personajes en 3D">
-        <strong>08</strong>
-        <span>PERSONAJES<br>EN LA COLECCIÓN</span>
-      </div>
-    </section>
-
-    <section class="toolbar" aria-label="Controles del catálogo">
-      <label class="search">
-        <span aria-hidden="true">⌕</span>
-        <input
-          id="search"
-          type="search"
-          placeholder="Busca a tu personaje..."
-          aria-label="Buscar personajes"
-          autocomplete="off"
-        >
-        <kbd>/</kbd>
-      </label>
-
-      <div class="filters" aria-label="Filtrar por clase">
-        <button class="filter active" data-filter="Todos" aria-pressed="true">
-          Todos
-        </button>
-        <button class="filter" data-filter="Tanque" aria-pressed="false">
-          Tanques
-        </button>
-        <button class="filter" data-filter="Guerrero" aria-pressed="false">
-          Guerreros
-        </button>
-        <button class="filter" data-filter="Ágil" aria-pressed="false">
-          Ágiles
-        </button>
-      </div>
-    </section>
-
-    <div class="section-heading">
-      <h2>La colección <span id="count">08</span></h2>
-      <p>Arrastra para girar <span>·</span> Usa + y - para acercar</p>
-    </div>
-
-    <section id="catalog" class="catalog" aria-label="Catálogo de personajes"></section>
-
-    <p id="empty" class="empty" hidden>
-      No hay personajes con ese nombre. Prueba otra búsqueda.
-    </p>
-
-    <p id="error" class="error" role="alert" hidden></p>
-
-    <footer>
-      <span>CLASHBLOCKS / FAN PROJECT</span>
-      <span>
-        Reinterpretaciones no oficiales. Sin afiliación con Supercell o Roblox.
-      </span>
-    </footer>
-  </main>
-
-  <script type="module" src="./personajes.js"></script>
-</body>
-</html>
+<header>
+  <button data-view="persp">Perspectiva</button><button data-view="front">Frontal</button>
+  <button data-view="side">Lateral</button><button data-view="top">Superior</button>
+  <span class="sep"></span>
+  <select id="mode"><option value="translate">Mover (W)</option><option value="rotate">Rotar (E)</option><option value="scale">Escalar (R)</option></select>
+  <label><input type="checkbox" id="snap" checked> Snap</label>
+  <label><input type="checkbox" id="markers" checked> Sockets</label>
+  <span class="sep"></span>
+  <button id="undo">Deshacer</button><button id="redo">Rehacer</button>
+  <span class="sep"></span>
+  <button id="export">Exportar JSON</button><button id="import">Importar JSON</button>
+  <label><input type="checkbox" id="onlyObj"> solo objetos</label>
+  <label><input type="checkbox" id="useNorm"> posición normalizada</label>
+  <button id="reset">Reiniciar</button>
+  <input type="file" id="file" accept=".json" hidden>
+</header>
+<main>
+  <aside><h3>Objetos</h3><p class="hint">Arrastra al personaje, o toca para añadir al socket sugerido.</p><div id="libList"></div></aside>
+  <div id="view"><div id="tag"></div></div>
+  <aside id="side">
+    <h3>Cuerpo</h3>
+    <div class="row"><select id="segSel"></select></div>
+    <div class="row"><label>Largo</label><input type="range" id="segLen" min="0.03" max="0.8" step="0.005"><output id="segLenV"></output></div>
+    <div class="row"><label>Ancho</label><input type="range" id="segWid" min="0.03" max="0.5" step="0.005"><output id="segWidV"></output></div>
+    <div class="row"><label>Piel</label><input type="color" id="cPiel"><label>Base</label><input type="color" id="cBase"></div>
+    <h3>Pose</h3>
+    <div class="row"><select id="jointSel"></select></div>
+    <div id="poseRows"></div>
+    <div class="row"><button id="poseA">Pose A</button><button id="poseT">Pose T</button><button id="jointReset">Reiniciar articulación</button></div>
+    <h3>Objeto seleccionado</h3>
+    <div id="props"><p class="hint">Haz clic en un objeto del personaje.</p></div>
+  </aside>
+</main>
+<script type="module" src="/src/main.js"></script>
+</body></html>
