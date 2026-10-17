@@ -31,3 +31,17 @@ En `src/objects/library.js`, agrega una entrada a `LIBRARY` con `label`, `socket
 
 ## Esquema JSON (v1)
 `schemaVersion`, `character` (segments, colors, joints opcionales, height), `pose.rotations`, `objects[]` (id, type, socket, transform{position,rotation,scale}, normalized{position,referenceLength}, material, visible, mirrorOf). Ver `example.json`.
+
+## Publicar en GitHub Pages
+No se puede publicar el código fuente tal cual: `import 'three'` necesita compilarse con Vite.
+1. Sube el proyecto (incluida la carpeta `.github/`) a la rama `main`.
+2. En el repo: Settings → Pages → Source: **GitHub Actions**.
+3. Cada push a `main` compila (`npm run build`) y publica `dist/`.
+
+## Modo juego (`game.html`)
+Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public/personaje.json` (puedes reemplazarlo por tu export o usar el botón "Cargar personaje").
+- Joystick: mueve al personaje (animación de caminar proporcional a la inclinación).
+- Caminar (mantener): avanza hacia donde mira. Saltar y Atacar: botones.
+- Teclado: WASD/flechas, Espacio (saltar), J (atacar).
+- Las animaciones son procedurales sobre las mismas articulaciones y límites del editor; la pose del JSON es la pose base.
+- Atacar anima el brazo derecho (donde suele ir el arma); en `src/game/game.js` el arreglo `KF` define los fotogramas clave.

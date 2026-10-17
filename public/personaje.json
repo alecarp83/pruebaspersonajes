@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "character": {
+    "name": "personaje_01",
+    "units": "m",
+    "height": 1.985,
+    "segments": {
+      "cabeza": {
+        "length": 0.255,
+        "width": 0.195
+      },
+      "cuello": {
+        "length": 0.08,
+        "width": 0.125
+      },
+      "torso": {
+        "length": 0.55,
+        "width": 0.375
+      },
+      "pelvis": {
+        "length": 0.18,
+        "width": 0.3
+      },
+      "brazo": {
+        "length": 0.3,
+        "width": 0.11
+      },
+      "antebrazo": {
+        "length": 0.27,
+        "width": 0.095
+      },
+      "mano": {
+        "length": 0.18,
+        "width": 0.09
+      },
+      "muslo": {
+        "length": 0.43,
+        "width": 0.12
+      },
+      "pantorrilla": {
+        "length": 0.42,
+        "width": 0.09
+      },
+      "pie": {
+        "length": 0.26,
+        "width": 0.1
+      }
+    },
+    "symmetric": true,
+    "colors": {
+      "piel": "#d9b08c",
+      "base": "#4a6fa5"
+    },
+    "joints": {}
+  },
+  "pose": {
+    "name": "custom",
+    "rotations": {
+      "hombro_L": [
+        0,
+        0,
+        30
+      ],
+      "hombro_R": [
+        0,
+        0,
+        -30
+      ],
+      "cintura": [
+        0,
+        3,
+        0
+      ],
+      "codo_R": [
+        48,
+        -31,
+        0
+      ],
+      "codo_L": [
+        43,
+        0,
+        0
+      ]
+    }
+  },
+  "objects": [
+    {
+      "id": "obj_001",
+      "type": "espada",
+      "socket": "mano_R",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "normalized": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "referenceLength": 0.18
+      },
+      "material": {
+        "color": "#b0b0b8",
+        "metalness": 0.8,
+        "roughness": 0.35
+      },
+      "visible": true,
+      "mirrorOf": null
+    },
+    {
+      "id": "obj_003",
+      "type": "casco",
+      "socket": "cabeza",
+      "transform": {
+        "position": [
+          0,
+          0.02,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "normalized": {
+        "position": [
+          0,
+          0.0784,
+          0
+        ],
+        "referenceLength": 0.255
+      },
+      "material": {
+        "color": "#aab0b8",
+        "metalness": 0.7,
+        "roughness": 0.4
+      },
+      "visible": true,
+      "mirrorOf": null
+    }
+  ]
+}
