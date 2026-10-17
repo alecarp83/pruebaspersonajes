@@ -23,3 +23,6 @@ aside h3:first-child{margin-top:0}
 .row input[type=range]{flex:1;min-width:0}
 output{width:40px;text-align:right;color:#a7b0c0}
 @media(max-width:820px){main{grid-template-columns:1fr;grid-template-rows:auto 55vh auto;overflow:auto}}
+[hidden]{display:none!important}
+.row select{flex:1;min-width:0}
+.row input[type=color]{width:34px;height:26px;padding:0;border:1px solid #434b5c;background:none}

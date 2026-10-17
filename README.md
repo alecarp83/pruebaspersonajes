@@ -45,3 +45,9 @@ Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public
 - Teclado: WASD/flechas, Espacio (saltar), J (atacar), C o Shift (agacharse), E (agarrar/soltar), Q (lanzar).
 - Las animaciones son procedurales sobre las mismas articulaciones y límites del editor; la pose del JSON es la pose base.
 - Atacar anima el brazo derecho (donde suele ir el arma); en `src/game/game.js` el arreglo `KF` define los fotogramas clave.
+
+## Texturas, partes y calidad visual
+- Haz clic en una parte del cuerpo para editar su textura (liso, piel, tela, rayas, cuadros, cuero, metal, madera, camuflaje), colores, escala, rugosidad y metal. Los lados L y R comparten estilo; "Aplicar a todo el cuerpo" copia el estilo.
+- Los objetos tienen el mismo panel de textura. Todo se guarda en el JSON (`character.parts` y `material` de cada objeto), sin imágenes.
+- Hay esferas en hombros, codos, muñecas, caderas, rodillas y tobillos para tapar los huecos al doblar.
+- Iluminación de estudio con sombras reales y reflejos; "Captura PNG" exporta con fondo transparente. El modo juego usa las mismas texturas y sombras.

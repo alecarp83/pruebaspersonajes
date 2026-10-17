@@ -14,7 +14,7 @@
   <span class="sep"></span>
   <button id="undo">Deshacer</button><button id="redo">Rehacer</button>
   <span class="sep"></span>
-  <button id="export">Exportar JSON</button><button id="import">Importar JSON</button>
+  <button id="export">Exportar JSON</button><button id="shot">Captura PNG</button><button id="import">Importar JSON</button>
   <label><input type="checkbox" id="onlyObj"> solo objetos</label>
   <label><input type="checkbox" id="useNorm"> posición normalizada</label>
   <button id="reset">Reiniciar</button><a href="game.html" style="color:#7fd0b0">Jugar →</a>
@@ -29,6 +29,8 @@
     <div class="row"><label>Largo</label><input type="range" id="segLen" min="0.03" max="0.8" step="0.005"><output id="segLenV"></output></div>
     <div class="row"><label>Ancho</label><input type="range" id="segWid" min="0.03" max="0.5" step="0.005"><output id="segWidV"></output></div>
     <div class="row"><label>Piel</label><input type="color" id="cPiel"><label>Base</label><input type="color" id="cBase"></div>
+    <h3>Parte seleccionada</h3>
+    <p class="hint" id="partHint">Haz clic sobre una parte del cuerpo para cambiar su textura.</p><div id="partBox" hidden></div>
     <h3>Pose</h3>
     <div class="row"><select id="jointSel"></select></div>
     <div id="poseRows"></div>

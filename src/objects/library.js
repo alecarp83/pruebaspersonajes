@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { makeMaterial } from '../character/textures.js';
 
 // Objetos rígidos procedurales. Origen = punto de agarre/anclaje, +Y = eje largo.
 // Para añadir uno nuevo: agrega una entrada a LIBRARY (build recibe material principal y de acento).
-const P = (g, geo, mat, y = 0, z = 0, x = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+const P = (g, geo, mat, y = 0, z = 0, x = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
 const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const C = (r, h, rb = r) => new THREE.CylinderGeometry(r, rb, h, 14);
 
@@ -27,12 +28,19 @@ export const LIBRARY = {
     build: (m) => { const g = new THREE.Group(); P(g, new THREE.SphereGeometry(.12, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), m, -.1); return g; } },
 };
 
+export const objDefaults = type => { const d = LIBRARY[type]; return { tex: 'liso', color: d.color, color2: '#555555', scale: 4, roughness: d.roughness, metalness: d.metalness }; };
+
 export function createObject(type, mat = {}) {
-  const def = LIBRARY[type];
-  const main = new THREE.MeshStandardMaterial({
-    color: mat.color ?? def.color, metalness: mat.metalness ?? def.metalness, roughness: mat.roughness ?? def.roughness });
+  const main = makeMaterial({ ...objDefaults(type), ...mat });
   const accent = new THREE.MeshStandardMaterial({ color: 0x3b3b42, metalness: .5, roughness: .5 });
-  const g = def.build(main, accent);
+  const g = LIBRARY[type].build(main, accent);
   g.userData.mainMat = main;
   return g;
+}
+
+// Cambia el material principal de un objeto ya creado (textura, color, etc.)
+export function setMainMaterial(node, mat) {
+  const old = node.userData.mainMat;
+  node.traverse(o => { if (o.isMesh && o.material === old) o.material = mat; });
+  node.userData.mainMat = mat; old.map?.dispose(); old.dispose();
 }

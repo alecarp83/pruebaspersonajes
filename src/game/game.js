@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { SEGMENT_DEFAULTS, NEUTRAL, buildCharacter, setPose } from '../character/character.js';
 import { LIBRARY, createObject } from '../objects/library.js';
 
@@ -7,10 +8,13 @@ const msg = t => { const m = $('#msg'); m.textContent = t; m.style.display = t ?
 
 // ---------- Escena y mapa ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); $('#view').appendChild(renderer.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9ec5e8); scene.fog = new THREE.Fog(0x9ec5e8, 18, 40);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x557744, 1.2));
-const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(5, 10, 4); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x557744, .8));
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .5;
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(6, 12, 5); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 40 }); sun.shadow.bias = -.0005; scene.add(sun);
 const cam = new THREE.PerspectiveCamera(50, 1, .1, 80);
 const resize = () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); };
 addEventListener('resize', resize); resize();
@@ -47,6 +51,9 @@ const crates = [[2.5, 2], [-2, 4], [5, -6], [-6, -1], [1, -2]].map(([x, z]) => {
 let held = null, act = null;
 const setShown = (sel, v) => { const e = $(sel); if (e.hidden === v) e.hidden = !v; };
 
+scene.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+ground.castShadow = false; shadow.visible = false;  // sombras reales: se oculta la sombra falsa
+
 // ---------- Personaje (mismo esqueleto que el editor) ----------
 let ch = null, base = {}, limits = {}, baseY = 0;
 function loadChar(j) {
@@ -54,7 +61,7 @@ function loadChar(j) {
   const seg = { ...clone(SEGMENT_DEFAULTS), ...(j.character?.segments || {}) };
   const colors = { piel: '#d9b08c', base: '#4a6fa5', ...(j.character?.colors || {}) };
   limits = j.character?.joints || {}; base = { ...clone(NEUTRAL), ...clone(j.pose?.rotations || {}) };
-  ch = buildCharacter(seg, colors);
+  ch = buildCharacter(seg, colors, j.character?.parts || {});
   ch.root.traverse(n => { if (n.userData.marker) n.visible = false; });
   for (const d of j.objects || []) {
     if (!LIBRARY[d.type] || !ch.sockets[d.socket]) continue;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeMaterial } from './textures.js';
 
 // Convención: Y arriba, Z hacia delante, unidades en metros.
 // Lado izquierdo (L) = +X, derecho (R) = -X (anatomía real vista de frente a +Z).
@@ -48,12 +49,12 @@ export function characterHeight(s) {
 }
 
 // Cada articulación es un pivote; la malla del segmento cuelga desplazada del pivote proximal.
-export function buildCharacter(seg, colors) {
+export function buildCharacter(seg, colors, parts = {}) {
   const root = new THREE.Group(), joints = {}, sockets = {}, refLen = {};
-  const mS = new THREE.MeshStandardMaterial({ color: colors.piel, roughness: .8 });
-  const mB = new THREE.MeshStandardMaterial({ color: colors.base, roughness: .8 });
+  const mats = {}; for (const n of PART_NAMES) mats[n] = makeMaterial(resolvePart(n, colors, parts));
   const pivot = (n, p, x = 0, y = 0, z = 0) => { const o = new THREE.Object3D(); o.name = n; o.position.set(x, y, z); p.add(o); joints[n] = o; return o; };
-  const mesh = (p, g, m, y = 0, z = 0) => { const o = new THREE.Mesh(g, m); o.position.set(0, y, z); o.userData.body = true; p.add(o); return o; };
+  const mesh = (p, g, part, y = 0, z = 0) => { const o = new THREE.Mesh(g, mats[part]); o.position.set(0, y, z); o.userData.body = true; o.userData.part = part; o.castShadow = o.receiveShadow = true; p.add(o); return o; };
+  const jsph = (p, r, part) => mesh(p, new THREE.SphereGeometry(r, 16, 12), part); // esfera de articulación
   const cap = (l, w) => new THREE.CapsuleGeometry(w / 2, Math.max(l - w, .001), 4, 12);
   const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
   const sock = (n, p, len, x = 0, y = 0, z = 0, rx = 0, ry = 0) => {
@@ -65,35 +66,55 @@ export function buildCharacter(seg, colors) {
   const { cabeza, cuello, torso, pelvis, brazo, antebrazo, mano, muslo, pantorrilla, pie } = seg;
 
   const cin = pivot('cintura', root, 0, pantorrilla.length + muslo.length + .07 + pelvis.length / 2);
-  mesh(cin, box(pelvis.width, pelvis.length, pelvis.width * .6), mB);
+  mesh(cin, box(pelvis.width, pelvis.length, pelvis.width * .6), 'pelvis');
   const tor = pivot('torso', cin, 0, pelvis.length / 2);
-  mesh(tor, cap(torso.length, torso.width), mB, torso.length / 2).scale.z = .6;
+  mesh(tor, cap(torso.length, torso.width), 'torso', torso.length / 2).scale.z = .6;
   const cue = pivot('cuello', tor, 0, torso.length);
-  mesh(cue, cap(cuello.length + .02, cuello.width), mS, cuello.length / 2);
+  mesh(cue, cap(cuello.length + .02, cuello.width), 'cuello', cuello.length / 2);
   const cab = pivot('cabeza', cue, 0, cuello.length);
-  mesh(cab, cap(cabeza.length, cabeza.width), mS, cabeza.length / 2);
+  mesh(cab, cap(cabeza.length, cabeza.width), 'cabeza', cabeza.length / 2);
   sock('cabeza', cab, cabeza.length, 0, cabeza.length * .9, 0);
   sock('pecho', tor, torso.length, 0, torso.length * .7, torso.width * .3);
   sock('espalda', tor, torso.length, 0, torso.length * .6, -torso.width * .3, 0, Math.PI); // +Z local = hacia atrás
 
   for (const [s, k] of [['L', 1], ['R', -1]]) {
     const h = pivot('hombro_' + s, tor, k * (torso.width / 2 + brazo.width * .25), torso.length - brazo.width / 2);
-    mesh(h, cap(brazo.length, brazo.width), mS, -brazo.length / 2);
+    mesh(h, cap(brazo.length, brazo.width), 'brazo', -brazo.length / 2);
+    jsph(h, brazo.width * .56, 'brazo');
     const c = pivot('codo_' + s, h, 0, -brazo.length);
-    mesh(c, cap(antebrazo.length, antebrazo.width), mS, -antebrazo.length / 2);
+    mesh(c, cap(antebrazo.length, antebrazo.width), 'antebrazo', -antebrazo.length / 2);
+    jsph(c, Math.max(brazo.width, antebrazo.width) / 2 * .98, 'antebrazo');
     const m = pivot('muneca_' + s, c, 0, -antebrazo.length);
-    mesh(m, box(mano.width, mano.length, mano.width * .4), mS, -mano.length / 2);
+    mesh(m, box(mano.width, mano.length, mano.width * .4), 'mano', -mano.length / 2);
+    jsph(m, antebrazo.width / 2 * .95, 'mano');
     sock('mano_' + s, m, mano.length, 0, -mano.length / 2, 0, Math.PI / 2); // +Y local = hacia delante
 
     const ca = pivot('cadera_' + s, cin, k * pelvis.width * .3, -pelvis.length / 2);
-    mesh(ca, cap(muslo.length, muslo.width), mB, -muslo.length / 2);
+    mesh(ca, cap(muslo.length, muslo.width), 'muslo', -muslo.length / 2);
+    jsph(ca, muslo.width / 2 * 1.08, 'muslo');
     const r = pivot('rodilla_' + s, ca, 0, -muslo.length);
-    mesh(r, cap(pantorrilla.length, pantorrilla.width), mB, -pantorrilla.length / 2);
+    mesh(r, cap(pantorrilla.length, pantorrilla.width), 'pantorrilla', -pantorrilla.length / 2);
+    jsph(r, Math.max(muslo.width, pantorrilla.width) / 2 * .98, 'pantorrilla');
     const t = pivot('tobillo_' + s, r, 0, -pantorrilla.length);
-    mesh(t, box(pie.width, .07, pie.length), mB, -.035, pie.length / 2 - .05);
+    mesh(t, box(pie.width, .07, pie.length), 'pie', -.035, pie.length / 2 - .05);
+    jsph(t, pantorrilla.width / 2 * .95, 'pie');
     sock('cadera_' + s, cin, pelvis.length, k * pelvis.width / 2, 0, 0);
     sock('muslo_' + s, ca, muslo.length, k * muslo.width / 2, -muslo.length / 2, 0);
     sock('pie_' + s, t, pie.length, 0, -.035, pie.length / 2 - .05);
   }
-  return { root, joints, sockets, refLen };
+  return { root, joints, sockets, refLen, mats };
+}
+
+// ---- Partes del cuerpo y su material (los lados L y R comparten estilo) ----
+export const PART_NAMES = ['cabeza', 'cuello', 'torso', 'pelvis', 'brazo', 'antebrazo', 'mano', 'muslo', 'pantorrilla', 'pie'];
+const SKIN = { cabeza: 'piel', cuello: 'piel', brazo: 'piel', antebrazo: 'piel', mano: 'piel', torso: 'base', pelvis: 'base', muslo: 'base', pantorrilla: 'base', pie: 'base' };
+const shade = (c, a) => '#' + new THREE.Color(c).offsetHSL(0, 0, a).getHexString();
+export function resolvePart(n, colors, parts = {}) {
+  const c = colors[SKIN[n]];
+  return { tex: 'liso', color: c, color2: shade(c, -.25), scale: 4, roughness: .8, metalness: 0, ...(parts[n] || {}) };
+}
+export function updatePart(ch, name, colors, parts) {
+  const nm = makeMaterial(resolvePart(name, colors, parts)), old = ch.mats[name];
+  ch.root.traverse(o => { if (o.isMesh && o.userData.part === name) o.material = nm; });
+  ch.mats[name] = nm; old.map?.dispose(); old.dispose();
 }
