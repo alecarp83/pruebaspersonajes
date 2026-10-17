@@ -63,6 +63,9 @@ function loadChar(j) {
     n.visible = d.visible !== false; ch.sockets[d.socket].add(n);
   }
   baseY = ch.joints.cintura.position.y; scene.add(ch.root);
+  legs = [seg.muslo.length, seg.pantorrilla.length];
+  const reach = seg.brazo.length + (seg.antebrazo.length + seg.mano.length / 2) * Math.cos(D.degToRad(70));
+  buildAnims(D.radToDeg(Math.asin(D.clamp((.28 - ch.joints.hombro_L.position.x) / reach, -.4, .4))));
 }
 
 // ---------- Entrada: joystick, botones y teclado ----------
@@ -97,11 +100,17 @@ const KF = [[0, { hombro_R: [140, 0, -10], codo_R: [60, 0, 0], cintura: [0, -35,
   [.28, { hombro_R: [20, 0, -15], codo_R: [10, 0, 0], cintura: [0, 30, 0] }],
   [.5, { hombro_R: [20, 0, -15], codo_R: [10, 0, 0], cintura: [0, 30, 0] }]];
 const ATK_LEN = .5;
-const P2 = (h, c, ci, ca, ro, z = 8) => ({ hombro_L: [h, 0, z], hombro_R: [h, 0, -z], codo_L: [c, 0, 0], codo_R: [c, 0, 0], cintura: [ci, 0, 0],
+const P2 = (z, h, c, ci, ca, ro) => ({ hombro_L: [h, 0, z], hombro_R: [h, 0, -z], codo_L: [c, 0, 0], codo_R: [c, 0, 0], cintura: [ci, 0, 0],
   cadera_L: [ca, 0, 0], cadera_R: [ca, 0, 0], rodilla_L: [ro, 0, 0], rodilla_R: [ro, 0, 0] });
-const REACH = P2(55, 25, 25, 55, 105), CARRY = P2(55, 40, 0, 0, 0), WIND = P2(40, 110, -10, 20, 35), REL = P2(95, 8, 25, 0, 0);
-const ANIMS = { grab: { len: .55, kf: [[0, REACH], [.22, REACH], [.55, CARRY]] }, drop: { len: .45, kf: [[0, CARRY], [.2, REACH], [.45, REACH]] },
-  throw: { len: .5, kf: [[0, WIND], [.18, WIND], [.3, REL], [.5, REL]] } };
+let ANIMS = {}, CARRY = {}, legs = [.43, .42];
+function buildAnims(z) {  // z = apertura del hombro para que las manos queden a los lados de la caja
+  const REACH = P2(z, -10, 20, 50, 100, 140), WIND = P2(z, 40, 110, -10, 20, 35), REL = P2(z, 95, 8, 25, 0, 0);
+  CARRY = P2(z, 20, 70, 0, 0, 0);
+  ANIMS = { grab: { len: .55, kf: [[0, REACH], [.22, REACH], [.55, CARRY]] }, drop: { len: .45, kf: [[0, CARRY], [.2, REACH], [.45, REACH]] },
+    throw: { len: .5, kf: [[0, WIND], [.18, WIND], [.3, REL], [.5, REL]] } };
+}
+// descenso de la cadera según flexión de cadera y rodilla (para que los pies sigan en el suelo)
+const legDrop = (h, k) => legs[0] + legs[1] - (legs[0] * Math.cos(D.degToRad(h)) + legs[1] * Math.cos(D.degToRad(h - k)));
 function nearCrate() {
   let b = null, bd = 1.3;
   for (const c of crates) { if (c.state !== 'ground') continue; const p = c.mesh.position, d = Math.hypot(p.x - pos.x, p.z - pos.z);
@@ -133,7 +142,8 @@ function step(dt, t) {
   if (wantAtk && !busy && !held) { atkT = 0; hitDone = false; } wantAtk = false;
   if (!busy && !air) {
     if (!held && wantGrab) { const c = nearCrate();
-      if (c) { held = c; c.state = 'held'; c.from.copy(c.mesh.position); rotY = Math.atan2(c.mesh.position.x - pos.x, c.mesh.position.z - pos.z); act = { name: 'grab', t: 0 }; } }
+      if (c) { held = c; c.state = 'held'; c.from.copy(c.mesh.position); rotY = Math.atan2(c.mesh.position.x - pos.x, c.mesh.position.z - pos.z); const ox = c.mesh.position.x - pos.x, oz = c.mesh.position.z - pos.z, d = Math.hypot(ox, oz) || 1;
+        act = { name: 'grab', t: 0, gx: c.mesh.position.x - ox / d * .95, gz: c.mesh.position.z - oz / d * .95 }; } }
     else if (held && wantDrop) { const tx = D.clamp(pos.x + Math.sin(rotY), -BOUND, BOUND), tz = D.clamp(pos.z + Math.cos(rotY), -BOUND, BOUND);
       held.to.set(tx, groundAt(tx, tz) + .25, tz); act = { name: 'drop', t: 0 }; }
     else if (held && wantThrow) act = { name: 'throw', t: 0 };
@@ -141,6 +151,7 @@ function step(dt, t) {
   wantGrab = wantDrop = wantThrow = false;
   if (act) {
     act.t += dt;
+    if (act.name === 'grab' && act.t < .25) { pos.x += (act.gx - pos.x) * Math.min(1, dt * 10); pos.z += (act.gz - pos.z) * Math.min(1, dt * 10); }
     if (act.name === 'throw' && held && act.t > .26) {  // soltar en el punto de la animación: aterriza 3 cuadros delante
       const c = held, T = .6, tx = pos.x + Math.sin(rotY) * 3, tz = pos.z + Math.cos(rotY) * 3; held = null; c.state = 'fly';
       c.vx = (tx - c.mesh.position.x) / T; c.vz = (tz - c.mesh.position.z) / T; c.vy = (groundAt(tx, tz) + .25 - c.mesh.position.y + .5 * G * T * T) / T;
@@ -167,7 +178,7 @@ function step(dt, t) {
 
   // pose = pose base del JSON + animación
   const p = clone(base), A = (j, x, y = 0, z = 0) => { const v = p[j] ? [...p[j]] : [0, 0, 0]; p[j] = [v[0] + x, v[1] + y, v[2] + z]; };
-  const m = moveAmt, s = Math.sin(phase), c = Math.cos(phase); let yOff = 0;
+  const m = moveAmt, s = Math.sin(phase), c = Math.cos(phase); let yOff = 0, drop = 0;
   A('hombro_L', 0, 0, 1.5 * Math.sin(t * 2)); A('hombro_R', 0, 0, -1.5 * Math.sin(t * 2)); A('cabeza', 2 * Math.sin(t * 1.3));
   if (m > .02) {
     A('cadera_L', 35 * m * s); A('cadera_R', -35 * m * s);
@@ -177,20 +188,22 @@ function step(dt, t) {
   }
   if (air) { const up = vy > 0; A('cadera_L', up ? 45 : 20); A('cadera_R', up ? 15 : 10); A('rodilla_L', up ? 75 : 30); A('rodilla_R', up ? 35 : 20);
     A('hombro_L', up ? 70 : 15, 0, up ? 0 : 25); A('hombro_R', up ? 70 : 15, 0, up ? 0 : -25); }
-  if (landT > 0) { const k = landT / .18; A('cadera_L', 40 * k); A('cadera_R', 40 * k); A('rodilla_L', 75 * k); A('rodilla_R', 75 * k); A('hombro_L', 20 * k); A('hombro_R', 20 * k); yOff -= .2 * k; }
-  if (crAmt > .01) { A('cadera_L', 55 * crAmt); A('cadera_R', 55 * crAmt); A('rodilla_L', 105 * crAmt); A('rodilla_R', 105 * crAmt); A('cintura', 20 * crAmt); yOff -= .33 * crAmt; }
-  if (held) { A('hombro_L', 55, 0, -22); A('hombro_R', 55, 0, 22); A('codo_L', 40); A('codo_R', 40); }
+  if (landT > 0) { const k = landT / .18; A('cadera_L', 40 * k); A('cadera_R', 40 * k); A('rodilla_L', 75 * k); A('rodilla_R', 75 * k); A('hombro_L', 20 * k); A('hombro_R', 20 * k); drop = Math.max(drop, legDrop(40 * k, 75 * k)); }
+  if (crAmt > .01) { A('cadera_L', 55 * crAmt); A('cadera_R', 55 * crAmt); A('rodilla_L', 105 * crAmt); A('rodilla_R', 105 * crAmt); A('cintura', 20 * crAmt); drop = Math.max(drop, legDrop(55 * crAmt, 105 * crAmt)); }
+  if (held) for (const j of ['hombro_L', 'hombro_R', 'codo_L', 'codo_R']) p[j] = [...CARRY[j]];
   if (act) { const a = ANIMS[act.name], k = kfAt(a.kf, Math.min(act.t, a.len)), env = D.smoothstep(Math.min(act.t / .1, (a.len - act.t) / .12), 0, 1);
     for (const j in k) { const v = p[j] || [0, 0, 0]; p[j] = v.map((x, n) => x + (k[j][n] - x) * env); }
-    yOff += .33 * crAmt; yOff -= .33 * ((1 - env) * crAmt + env * k.cadera_L[0] / 55); }
+    drop = (1 - env) * drop + env * legDrop(k.cadera_L[0], k.rodilla_L[0]); }
   if (atkT >= 0) { const k = kfAt(KF, atkT), env = D.smoothstep(Math.min(atkT / .1, (ATK_LEN - atkT) / .15), 0, 1);
     for (const j in k) { const v = p[j] || [0, 0, 0]; p[j] = v.map((a, n) => a + (k[j][n] - a) * env); } }
+  yOff -= drop;
   setPose(ch.joints, p, limits);
   ch.joints.cintura.position.y = baseY + yOff;
   ch.root.position.copy(pos); ch.root.rotation.y = rotY;
   if (held) {
-    const V = new THREE.Vector3(pos.x + Math.sin(rotY) * .5, pos.y + 1.05 + yOff, pos.z + Math.cos(rotY) * .5), n = act?.name;
-    if (n === 'grab') held.mesh.position.lerpVectors(held.from, V, D.smoothstep(act.t, .22, .5));
+    ch.root.updateMatrixWorld(true);
+    const V = ch.sockets.mano_L.getWorldPosition(new THREE.Vector3()).add(ch.sockets.mano_R.getWorldPosition(new THREE.Vector3())).multiplyScalar(.5), n = act?.name;
+    if (n === 'grab') held.mesh.position.lerpVectors(held.from, V, D.smoothstep(act.t, .18, .5));
     else if (n === 'drop') held.mesh.position.lerpVectors(V, held.to, D.smoothstep(act.t, .2, .42));
     else held.mesh.position.copy(V);
     held.mesh.rotation.set(0, rotY, 0);
