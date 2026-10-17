@@ -731,4 +731,455 @@ function makeGolem() {
 
 // Sombra de contacto suave sin modelos ni texturas externas.
 function makeShadowTexture() {
-  const c
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+
+  const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  g.addColorStop(0, "rgba(0,0,0,0.55)");
+  g.addColorStop(0.55, "rgba(0,0,0,0.22)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const shadowTexture = makeShadowTexture();
+
+// ---------------------------------------------------------------------------
+// Vista 3D por tarjeta
+// ---------------------------------------------------------------------------
+
+function createView(character) {
+  const viewport = document.createElement("div");
+  viewport.className = "viewport";
+  viewport.tabIndex = 0;
+  viewport.setAttribute(
+    "aria-label",
+    `Modelo 3D de ${character.name}. Arrastra para girar.`
+  );
+
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.set(0, 2.1, 5.6);
+  camera.lookAt(0, 1.15, 0);
+
+  // Luces
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x2a2f45, 0.85);
+  scene.add(hemi);
+
+  const key = new THREE.DirectionalLight(0xffffff, 2.1);
+  key.position.set(3.5, 6, 4.5);
+  scene.add(key);
+
+  const fill = new THREE.DirectionalLight(character.color, 0.9);
+  fill.position.set(-4, 2.5, -3);
+  scene.add(fill);
+
+  const rim = new THREE.DirectionalLight(0xffffff, 0.8);
+  rim.position.set(0, 3, -5);
+  scene.add(rim);
+
+  // Modelo
+  const pivot = new THREE.Group();
+  scene.add(pivot);
+
+  let model = null;
+  try {
+    model = character.build();
+    pivot.add(model);
+  } catch (err) {
+    console.error(`Error al construir ${character.id}:`, err);
+  }
+
+  // Sombra de contacto
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.2, 3.2),
+    new THREE.MeshBasicMaterial({
+      map: shadowTexture,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.9
+    })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.005;
+  scene.add(shadow);
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    powerPreference: "low-power"
+  });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  viewport.appendChild(renderer.domElement);
+
+  const view = {
+    character,
+    viewport,
+    scene,
+    camera,
+    renderer,
+    pivot,
+    baseRotation: 0,
+    rotation: 0,
+    velocity: 0,
+    zoom: 1,
+    targetZoom: 1,
+    dragging: false,
+    lastX: 0,
+    visible: true,
+    resize() {
+      const w = viewport.clientWidth;
+      const h = viewport.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    },
+    render() {
+      renderer.render(scene, camera);
+    }
+  };
+
+  // Arrastre para girar
+  viewport.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    view.dragging = true;
+    view.lastX = e.clientX;
+    view.velocity = 0;
+    viewport.classList.add("dragging");
+    viewport.setPointerCapture(e.pointerId);
+  });
+
+  viewport.addEventListener("pointermove", (e) => {
+    if (!view.dragging) return;
+    const dx = e.clientX - view.lastX;
+    view.lastX = e.clientX;
+    const delta = dx * 0.01;
+    view.rotation += delta;
+    view.velocity = delta;
+  });
+
+  const endDrag = (e) => {
+    if (!view.dragging) return;
+    view.dragging = false;
+    viewport.classList.remove("dragging");
+    if (viewport.hasPointerCapture?.(e.pointerId)) {
+      viewport.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  viewport.addEventListener("pointerup", endDrag);
+  viewport.addEventListener("pointercancel", endDrag);
+  viewport.addEventListener("pointerleave", (e) => {
+    if (e.pointerType === "mouse") endDrag(e);
+  });
+
+  // Rueda para acercar
+  viewport.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      view.targetZoom = THREE.MathUtils.clamp(
+        view.targetZoom - e.deltaY * 0.0012,
+        0.6,
+        1.6
+      );
+    },
+    { passive: false }
+  );
+
+  view.resize();
+  view.render();
+
+  return view;
+}
+
+// ---------------------------------------------------------------------------
+// Construcción del catálogo
+// ---------------------------------------------------------------------------
+
+function buildCard(character, index) {
+  const card = document.createElement("article");
+  card.className = "card";
+  card.style.setProperty("--accent", character.color);
+  card.dataset.id = character.id;
+  card.dataset.type = character.type;
+  card.dataset.name = character.name.toLowerCase();
+
+  // Cabecera flotante
+  const top = document.createElement("div");
+  top.className = "card-top";
+
+  const num = document.createElement("span");
+  num.className = "card-number";
+  num.textContent = String(index + 1).padStart(2, "0");
+
+  const tag = document.createElement("span");
+  tag.className = "class-tag";
+  tag.textContent = character.type;
+
+  top.append(num, tag);
+  card.appendChild(top);
+
+  // Info inferior
+  const info = document.createElement("div");
+  info.className = "card-info";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "card-title-row";
+
+  const h3 = document.createElement("h3");
+  h3.textContent = character.name;
+
+  const square = document.createElement("span");
+  square.className = "accent-square";
+
+  titleRow.append(h3, square);
+
+  const desc = document.createElement("p");
+  desc.className = "card-description";
+  desc.textContent = character.description;
+
+  const bottom = document.createElement("div");
+  bottom.className = "card-bottom";
+
+  const label = document.createElement("span");
+  label.className = "model-label";
+  label.textContent = "MODELO 3D";
+
+  const controls = document.createElement("div");
+  controls.className = "model-controls";
+
+  const zoomIn = document.createElement("button");
+  zoomIn.type = "button";
+  zoomIn.textContent = "+";
+  zoomIn.setAttribute("aria-label", `Acercar ${character.name}`);
+
+  const zoomOut = document.createElement("button");
+  zoomOut.type = "button";
+  zoomOut.textContent = "−";
+  zoomOut.setAttribute("aria-label", `Alejar ${character.name}`);
+
+  controls.append(zoomIn, zoomOut);
+  bottom.append(label, controls);
+
+  info.append(titleRow, desc, bottom);
+  card.appendChild(info);
+
+  // Vista 3D
+  const view = createView(character);
+  card.insertBefore(view.viewport, info);
+
+  zoomIn.addEventListener("click", () => {
+    view.targetZoom = THREE.MathUtils.clamp(view.targetZoom - 0.2, 0.6, 1.6);
+  });
+  zoomOut.addEventListener("click", () => {
+    view.targetZoom = THREE.MathUtils.clamp(view.targetZoom + 0.2, 0.6, 1.6);
+  });
+
+  views.push(view);
+  return card;
+}
+
+function renderCatalog() {
+  catalog.innerHTML = "";
+
+  const term = searchTerm.trim().toLowerCase();
+  const filtered = DATA.filter((c) => {
+    const matchesFilter =
+      activeFilter === "Todos" || c.type === activeFilter;
+    const matchesSearch =
+      !term ||
+      c.name.toLowerCase().includes(term) ||
+      c.type.toLowerCase().includes(term);
+    return matchesFilter && matchesSearch;
+  });
+
+  // Las vistas antiguas ya no se usan: liberamos sus renderers.
+  while (views.length) {
+    const v = views.pop();
+    v.renderer.dispose();
+    v.renderer.forceContextLoss?.();
+  }
+
+  filtered.forEach((character, i) => {
+    catalog.appendChild(buildCard(character, i));
+  });
+
+  empty.hidden = filtered.length !== 0;
+
+  // Recalcular tamaño tras insertar en el DOM.
+  requestAnimationFrame(() => {
+    views.forEach((v) => {
+      v.resize();
+      v.render();
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Filtros, búsqueda y animación
+// ---------------------------------------------------------------------------
+
+const searchInput = document.querySelector("#search");
+const empty = document.querySelector("#empty");
+const animationButton = document.querySelector("#animation");
+const animationLabel = document.querySelector("#animation-label");
+
+searchInput.addEventListener("input", (e) => {
+  searchTerm = e.target.value;
+  renderCatalog();
+});
+
+// Atajo de teclado: "/" enfoca el buscador
+document.addEventListener("keydown", (e) => {
+  if (
+    e.key === "/" &&
+    document.activeElement !== searchInput &&
+    !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)
+  ) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
+document.querySelectorAll(".filter").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".filter").forEach((b) => {
+      b.classList.remove("active");
+      b.setAttribute("aria-pressed", "false");
+    });
+    button.classList.add("active");
+    button.setAttribute("aria-pressed", "true");
+    activeFilter = button.dataset.filter;
+    renderCatalog();
+  });
+});
+
+function syncAnimationButton() {
+  animationButton.setAttribute("aria-pressed", String(animate));
+  animationLabel.textContent = animate
+    ? "Animación activa"
+    : "Animación pausada";
+}
+
+animationButton.addEventListener("click", () => {
+  animate = !animate;
+  syncAnimationButton();
+});
+
+reduceMotion.addEventListener("change", (e) => {
+  animate = !e.matches;
+  syncAnimationButton();
+});
+
+// ---------------------------------------------------------------------------
+// Inicialización y loop
+// ---------------------------------------------------------------------------
+
+function initRenderer() {
+  try {
+    const test = document.createElement("canvas");
+    const gl =
+      test.getContext("webgl2") || test.getContext("webgl");
+    if (!gl) throw new Error("WebGL no disponible");
+  } catch (err) {
+    errorBox.hidden = false;
+    errorBox.textContent =
+      "Tu navegador no soporta WebGL, por lo que no podemos mostrar los modelos 3D.";
+    console.error(err);
+    return false;
+  }
+  return true;
+}
+
+let lastLoop = performance.now();
+let fpsSkipped = 0;
+
+function loop(now) {
+  requestAnimationFrame(loop);
+
+  const dt = Math.min((now - lastLoop) / 1000, 0.05);
+  lastLoop = now;
+
+  // Throttle a ~30fps para no quemar la GPU con 8 vistas.
+  fpsSkipped = (fpsSkipped + 1) % 2;
+  if (fpsSkipped !== 0) return;
+
+  elapsed += dt;
+
+  for (const view of views) {
+    if (!view.visible) continue;
+
+    // Zoom suave
+    view.zoom += (view.targetZoom - view.zoom) * 0.15;
+
+    // Inercia del arrastre
+    if (!view.dragging) {
+      view.rotation += view.velocity;
+      view.velocity *= 0.94;
+      if (Math.abs(view.velocity) < 0.0004) view.velocity = 0;
+      if (animate) {
+        view.rotation += dt * 0.35;
+      }
+    }
+
+    view.pivot.rotation.y = view.rotation;
+
+    // Flotación sutil
+    const bob = animate
+      ? Math.sin(elapsed * 1.4 + view.rotation) * 0.03
+      : 0;
+    view.pivot.position.y = bob;
+
+    view.camera.position.set(0, 2.1, 5.6 * view.zoom);
+    view.camera.lookAt(0, 1.15, 0);
+
+    view.render();
+  }
+}
+
+// Solo renderizar las vistas visibles
+const io = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      const view = views.find((v) => v.viewport === entry.target);
+      if (view) view.visible = entry.isIntersecting;
+    }
+  },
+  { rootMargin: "100px" }
+);
+
+function observeViews() {
+  views.forEach((v) => io.observe(v.viewport));
+}
+
+// Resize global con debounce
+let resizeTimer = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    views.forEach((v) => {
+      v.resize();
+      v.render();
+    });
+  }, 120);
+});
+
+// Arranque
+if (initRenderer()) {
+  renderCatalog();
+  observeViews();
+  syncAnimationButton();
+  requestAnimationFrame(loop);
+}
