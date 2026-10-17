@@ -51,3 +51,8 @@ Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public
 - Los objetos tienen el mismo panel de textura. Todo se guarda en el JSON (`character.parts` y `material` de cada objeto), sin imágenes.
 - Hay esferas en hombros, codos, muñecas, caderas, rodillas y tobillos para tapar los huecos al doblar.
 - Iluminación de estudio con sombras reales y reflejos; "Captura PNG" exporta con fondo transparente. El modo juego usa las mismas texturas y sombras.
+
+## Equipo, IK y presets
+- **Equipo** (botas, guantes, hombreras, cinturón, rodilleras, mochila): casillas en el panel derecho. Son piezas rígidas dimensionadas según los segmentos del personaje, fijas a sus articulaciones (siguen la pose) y con el mismo panel de textura (clic sobre la pieza). Se guardan en `character.gear`.
+- **IK manos**: activa "IK manos" en la barra superior. Aparecen una esfera verde (mano izquierda) y una roja (derecha); arrástralas y el hombro y el codo se ajustan respetando los límites. Los objetos en la mano acompañan el movimiento.
+- **Presets**: humano, robot, chibi, corpulento, orco, zombie, fantasma y mutante. Cambian medidas, texturas, equipo y pose, y conservan los objetos ya colocados. Datos en `src/character/presets.js`.

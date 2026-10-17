@@ -61,7 +61,7 @@ function loadChar(j) {
   const seg = { ...clone(SEGMENT_DEFAULTS), ...(j.character?.segments || {}) };
   const colors = { piel: '#d9b08c', base: '#4a6fa5', ...(j.character?.colors || {}) };
   limits = j.character?.joints || {}; base = { ...clone(NEUTRAL), ...clone(j.pose?.rotations || {}) };
-  ch = buildCharacter(seg, colors, j.character?.parts || {});
+  ch = buildCharacter(seg, colors, j.character?.parts || {}, j.character?.gear || {});
   ch.root.traverse(n => { if (n.userData.marker) n.visible = false; });
   for (const d of j.objects || []) {
     if (!LIBRARY[d.type] || !ch.sockets[d.socket]) continue;

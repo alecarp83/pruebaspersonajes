@@ -49,9 +49,9 @@ export function characterHeight(s) {
 }
 
 // Cada articulación es un pivote; la malla del segmento cuelga desplazada del pivote proximal.
-export function buildCharacter(seg, colors, parts = {}) {
+export function buildCharacter(seg, colors, parts = {}, gear = {}) {
   const root = new THREE.Group(), joints = {}, sockets = {}, refLen = {};
-  const mats = {}; for (const n of PART_NAMES) mats[n] = makeMaterial(resolvePart(n, colors, parts));
+  const mats = {}; for (const n of [...PART_NAMES, ...GEAR_NAMES]) mats[n] = makeMaterial(resolvePart(n, colors, parts));
   const pivot = (n, p, x = 0, y = 0, z = 0) => { const o = new THREE.Object3D(); o.name = n; o.position.set(x, y, z); p.add(o); joints[n] = o; return o; };
   const mesh = (p, g, part, y = 0, z = 0) => { const o = new THREE.Mesh(g, mats[part]); o.position.set(0, y, z); o.userData.body = true; o.userData.part = part; o.castShadow = o.receiveShadow = true; p.add(o); return o; };
   const jsph = (p, r, part) => mesh(p, new THREE.SphereGeometry(r, 16, 12), part); // esfera de articulación
@@ -67,8 +67,11 @@ export function buildCharacter(seg, colors, parts = {}) {
 
   const cin = pivot('cintura', root, 0, pantorrilla.length + muslo.length + .07 + pelvis.length / 2);
   mesh(cin, box(pelvis.width, pelvis.length, pelvis.width * .6), 'pelvis');
+  if (gear.cinturon) { const z = pelvis.width * .6 * .56; mesh(cin, box(pelvis.width * 1.08, .06, pelvis.width * .6 * 1.12), 'cinturon', pelvis.length / 2 - .03); mesh(cin, box(.07, .07, .03), 'cinturon', pelvis.length / 2 - .03, z + .01); }
   const tor = pivot('torso', cin, 0, pelvis.length / 2);
   mesh(tor, cap(torso.length, torso.width), 'torso', torso.length / 2).scale.z = .6;
+  if (gear.mochila) { const w = torso.width; mesh(tor, box(w * .9, torso.length * .7, w * .4), 'mochila', torso.length * .5, -(w * .5 - .02));
+    for (const sx of [-1, 1]) mesh(tor, box(.045, torso.length * .6, .02), 'mochila', torso.length * .62, w * .3 + .008).position.x = sx * w * .26; }
   const cue = pivot('cuello', tor, 0, torso.length);
   mesh(cue, cap(cuello.length + .02, cuello.width), 'cuello', cuello.length / 2);
   const cab = pivot('cabeza', cue, 0, cuello.length);
@@ -81,12 +84,15 @@ export function buildCharacter(seg, colors, parts = {}) {
     const h = pivot('hombro_' + s, tor, k * (torso.width / 2 + brazo.width * .25), torso.length - brazo.width / 2);
     mesh(h, cap(brazo.length, brazo.width), 'brazo', -brazo.length / 2);
     jsph(h, brazo.width * .56, 'brazo');
+    if (gear.hombreras) { const d = mesh(h, new THREE.SphereGeometry(brazo.width * .78, 18, 12, 0, Math.PI * 2, 0, Math.PI * .62), 'hombreras', brazo.width * .12); d.scale.set(1.25, .85, 1.2); d.position.x = k * brazo.width * .1; }
     const c = pivot('codo_' + s, h, 0, -brazo.length);
     mesh(c, cap(antebrazo.length, antebrazo.width), 'antebrazo', -antebrazo.length / 2);
     jsph(c, Math.max(brazo.width, antebrazo.width) / 2 * .98, 'antebrazo');
+    if (gear.guantes) { const rr = antebrazo.width / 2 * 1.14; mesh(c, new THREE.CylinderGeometry(rr, rr, .09, 14), 'guantes', -antebrazo.length + .045); }
     const m = pivot('muneca_' + s, c, 0, -antebrazo.length);
     mesh(m, box(mano.width, mano.length, mano.width * .4), 'mano', -mano.length / 2);
     jsph(m, antebrazo.width / 2 * .95, 'mano');
+    if (gear.guantes) mesh(m, box(mano.width * 1.16, mano.length * .96, mano.width * .4 * 1.4), 'guantes', -mano.length / 2);
     sock('mano_' + s, m, mano.length, 0, -mano.length / 2, 0, Math.PI / 2); // +Y local = hacia delante
 
     const ca = pivot('cadera_' + s, cin, k * pelvis.width * .3, -pelvis.length / 2);
@@ -95,9 +101,12 @@ export function buildCharacter(seg, colors, parts = {}) {
     const r = pivot('rodilla_' + s, ca, 0, -muslo.length);
     mesh(r, cap(pantorrilla.length, pantorrilla.width), 'pantorrilla', -pantorrilla.length / 2);
     jsph(r, Math.max(muslo.width, pantorrilla.width) / 2 * .98, 'pantorrilla');
+    if (gear.rodilleras) { const rr = Math.max(muslo.width, pantorrilla.width) / 2 * 1.15; mesh(r, new THREE.SphereGeometry(rr, 14, 10), 'rodilleras', 0, rr * .35).scale.set(1, .9, .75); }
+    if (gear.botas) { const hh = pantorrilla.length * .38, rb = pantorrilla.width / 2 * 1.2; mesh(r, new THREE.CylinderGeometry(rb, rb, hh, 14), 'botas', -pantorrilla.length + hh / 2); }
     const t = pivot('tobillo_' + s, r, 0, -pantorrilla.length);
     mesh(t, box(pie.width, .07, pie.length), 'pie', -.035, pie.length / 2 - .05);
     jsph(t, pantorrilla.width / 2 * .95, 'pie');
+    if (gear.botas) mesh(t, box(pie.width * 1.2, .095, pie.length * 1.1), 'botas', -.0225, pie.length / 2 - .05 + pie.length * .02);
     sock('cadera_' + s, cin, pelvis.length, k * pelvis.width / 2, 0, 0);
     sock('muslo_' + s, ca, muslo.length, k * muslo.width / 2, -muslo.length / 2, 0);
     sock('pie_' + s, t, pie.length, 0, -.035, pie.length / 2 - .05);
@@ -106,10 +115,16 @@ export function buildCharacter(seg, colors, parts = {}) {
 }
 
 // ---- Partes del cuerpo y su material (los lados L y R comparten estilo) ----
+export const GEAR_NAMES = ['botas', 'guantes', 'hombreras', 'cinturon', 'rodilleras', 'mochila'];
+const GEAR_DEF = {
+  botas: { tex: 'cuero', color: '#4a3524', color2: '#2a1b10', roughness: .7 }, guantes: { tex: 'cuero', color: '#3a3a3a', color2: '#1a1a1a', roughness: .7 },
+  hombreras: { tex: 'metal', color: '#8a8f99', color2: '#4a4f58', metalness: .85, roughness: .4 }, cinturon: { tex: 'cuero', color: '#5a3b22', color2: '#2f1d0f', roughness: .7 },
+  rodilleras: { tex: 'metal', color: '#8a8f99', color2: '#4a4f58', metalness: .85, roughness: .4 }, mochila: { tex: 'tela', color: '#4d6b3a', color2: '#2f4423', roughness: .9 } };
 export const PART_NAMES = ['cabeza', 'cuello', 'torso', 'pelvis', 'brazo', 'antebrazo', 'mano', 'muslo', 'pantorrilla', 'pie'];
 const SKIN = { cabeza: 'piel', cuello: 'piel', brazo: 'piel', antebrazo: 'piel', mano: 'piel', torso: 'base', pelvis: 'base', muslo: 'base', pantorrilla: 'base', pie: 'base' };
 const shade = (c, a) => '#' + new THREE.Color(c).offsetHSL(0, 0, a).getHexString();
 export function resolvePart(n, colors, parts = {}) {
+  if (GEAR_DEF[n]) return { scale: 4, metalness: 0, roughness: .8, ...GEAR_DEF[n], ...(parts[n] || {}) };
   const c = colors[SKIN[n]];
   return { tex: 'liso', color: c, color2: shade(c, -.25), scale: 4, roughness: .8, metalness: 0, ...(parts[n] || {}) };
 }

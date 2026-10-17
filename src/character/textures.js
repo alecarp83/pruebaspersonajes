@@ -16,7 +16,7 @@ const DRAW = {
 export const TEXTURE_NAMES = ['liso', ...Object.keys(DRAW)];
 const cache = new Map();
 
-export function makeMaterial({ tex = 'liso', color = '#888888', color2 = '#555555', scale = 4, roughness = .8, metalness = 0 } = {}) {
+export function makeMaterial({ tex = 'liso', color = '#888888', color2 = '#555555', scale = 4, roughness = .8, metalness = 0, opacity = 1 } = {}) {
   const textured = tex !== 'liso' && DRAW[tex];
   const m = new THREE.MeshStandardMaterial({ color: textured ? '#ffffff' : color, roughness, metalness });
   if (textured) {
@@ -28,5 +28,6 @@ export function makeMaterial({ tex = 'liso', color = '#888888', color2 = '#55555
     }
     m.map = cache.get(key).clone(); m.map.needsUpdate = true; m.map.repeat.set(scale, scale);
   }
+  if (opacity < 1) { m.transparent = true; m.opacity = opacity; m.depthWrite = false; }
   return m;
 }

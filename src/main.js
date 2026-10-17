@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
-import { SEGMENT_DEFAULTS, POSE_JOINTS, NEUTRAL, POSE_T, limitFor, buildCharacter, setPose, characterHeight, resolvePart, updatePart } from './character/character.js';
+import { SEGMENT_DEFAULTS, POSE_JOINTS, NEUTRAL, POSE_T, limitFor, buildCharacter, setPose, characterHeight, resolvePart, updatePart, PART_NAMES, GEAR_NAMES } from './character/character.js';
+import { PRESETS } from './character/presets.js';
 import { TEXTURE_NAMES, makeMaterial } from './character/textures.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { LIBRARY, createObject, objDefaults, setMainMaterial } from './objects/library.js';
@@ -41,14 +42,14 @@ function setView(v) {
 }
 
 // ---------- Estado ----------
-const state = { seg: clone(SEGMENT_DEFAULTS), colors: { ...DEFAULT_COLORS }, limits: {}, parts: {}, pose: clone(NEUTRAL), objects: [] };
+const state = { seg: clone(SEGMENT_DEFAULTS), colors: { ...DEFAULT_COLORS }, limits: {}, parts: {}, gear: {}, pose: clone(NEUTRAL), objects: [] };
 let ch = null, selected = null, selPart = null, idCounter = 1;
 
 function rebuild() {
   tc.detach();
   state.objects.forEach(o => o.node.removeFromParent());
   if (ch) scene.remove(ch.root);
-  ch = buildCharacter(state.seg, state.colors, state.parts); scene.add(ch.root);
+  ch = buildCharacter(state.seg, state.colors, state.parts, state.gear); scene.add(ch.root);
   setPose(ch.joints, state.pose, state.limits);
   state.objects.forEach(o => (ch.sockets[o.socket] || ch.sockets.pecho).add(o.node));
   ch.root.traverse(n => { if (n.userData.marker) n.visible = $('#markers').checked; });
@@ -69,7 +70,7 @@ function addObject(type, socket, opt = {}) {
 const heightOf = () => +characterHeight(state.seg).toFixed(3);
 function serialize() {
   return { schemaVersion: SCHEMA_VERSION,
-    character: { name: 'personaje_01', units: 'm', height: heightOf(), segments: clone(state.seg), symmetric: true, colors: { ...state.colors }, parts: clone(state.parts), joints: clone(state.limits) },
+    character: { name: 'personaje_01', units: 'm', height: heightOf(), segments: clone(state.seg), symmetric: true, colors: { ...state.colors }, parts: clone(state.parts), gear: clone(state.gear), joints: clone(state.limits) },
     pose: { name: 'custom', rotations: clone(state.pose) },
     objects: state.objects.map(o => {
       const L = ch.refLen[o.socket], p = o.node.position.toArray(), r = o.node.rotation;
@@ -87,6 +88,7 @@ function load(j, { onlyObjects = false, useNorm = false, record = true } = {}) {
     state.colors = { ...DEFAULT_COLORS, ...(j.character.colors || {}) };
     state.limits = j.character.joints || {};
     state.parts = j.character.parts ? clone(j.character.parts) : {};
+    state.gear = j.character.gear ? clone(j.character.gear) : {};
     state.pose = j.pose?.rotations ? clone(j.pose.rotations) : clone(NEUTRAL);
   }
   state.objects.forEach(o => o.node.removeFromParent()); state.objects = [];
@@ -121,13 +123,14 @@ function setRay(e) {
   const r = renderer.domElement.getBoundingClientRect();
   ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
 }
-function select(o) { selected = o; o ? tc.attach(o.node) : tc.detach(); if (o) { selPart = null; hlPart(); refreshPart(); } refreshProps(); }
+function select(o) { ikActive = null; tc.setSpace('local'); selected = o; o ? tc.attach(o.node) : tc.detach(); if (o) { selPart = null; hlPart(); refreshPart(); } refreshProps(); }
 
 let down = null;
 renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener('pointerup', e => {
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4 || tc.axis) return;
   setRay(e);
+  if (ikOn()) { const hh = ray.intersectObjects(Object.values(handles))[0]; if (hh) { selectHandle(hh.object); return; } }
   const hit = ray.intersectObjects(state.objects.map(o => o.node), true)[0];
   let o = null;
   if (hit) { let n = hit.object; while (n && !(o = state.objects.find(x => x.node === n))) n = n.parent; }
@@ -135,7 +138,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   else { select(null); const bh = ray.intersectObject(ch.root, true).find(i => i.object.userData.body); selectPart(bh ? bh.object.userData.part : null); }
 });
 tc.addEventListener('dragging-changed', e => { orbit.enabled = !e.value; if (!e.value) { refreshProps(); commit(); } });
-tc.addEventListener('objectChange', refreshProps);
+tc.addEventListener('objectChange', () => { if (ikActive) { ikArm(ikActive.userData.side, ikActive.position); syncUI(); } else refreshProps(); });
 
 function nearestSocket(e) {
   setRay(e);
@@ -181,6 +184,7 @@ function syncUI() {
   });
   const sel = $('#oSock'); if (sel) fill(sel, Object.keys(ch.sockets));
   refreshProps(); refreshPart();
+  document.querySelectorAll('#gearBox input').forEach(el => el.checked = !!state.gear[el.dataset.g]); syncIK();
 }
 $('#segSel').onchange = $('#jointSel').onchange = syncUI;
 for (const [id, k] of [['#segLen', 'length'], ['#segWid', 'width']]) {
@@ -207,17 +211,18 @@ const TEX_HTML = p => `<div class="row"><label>Textura</label><select id="${p}Te
   <div class="row"><label>Color</label><input type="color" id="${p}C1"><label>2º</label><input type="color" id="${p}C2"></div>
   <div class="row"><label>Escala</label><input type="range" id="${p}Sc" min="1" max="16" step="0.5"></div>
   <div class="row"><label>Rugos.</label><input type="range" id="${p}Ro" min="0" max="1" step="0.05"></div>
-  <div class="row"><label>Metal</label><input type="range" id="${p}Me" min="0" max="1" step="0.05"></div>`;
-const TEX_MAP = { Tex: ['tex', v => v], C1: ['color', v => v], C2: ['color2', v => v], Sc: ['scale', Number], Ro: ['roughness', Number], Me: ['metalness', Number] };
+  <div class="row"><label>Metal</label><input type="range" id="${p}Me" min="0" max="1" step="0.05"></div>
+  <div class="row"><label>Opac.</label><input type="range" id="${p}Op" min="0.1" max="1" step="0.05"></div>`;
+const TEX_MAP = { Tex: ['tex', v => v], C1: ['color', v => v], C2: ['color2', v => v], Sc: ['scale', Number], Ro: ['roughness', Number], Me: ['metalness', Number], Op: ['opacity', Number] };
 function bindTex(p, apply) {
   for (const [s, [k, f]] of Object.entries(TEX_MAP)) { const el = $('#' + p + s); el.oninput = () => apply({ [k]: f(el.value) }, false); el.onchange = () => apply({ [k]: f(el.value) }, true); }
 }
 function fillTex(p, d) {
   $('#' + p + 'Tex').value = d.tex || 'liso'; $('#' + p + 'C1').value = d.color; $('#' + p + 'C2').value = d.color2 || '#555555';
-  $('#' + p + 'Sc').value = d.scale ?? 4; $('#' + p + 'Ro').value = d.roughness ?? .8; $('#' + p + 'Me').value = d.metalness ?? 0;
+  $('#' + p + 'Sc').value = d.scale ?? 4; $('#' + p + 'Ro').value = d.roughness ?? .8; $('#' + p + 'Me').value = d.metalness ?? 0; $('#' + p + 'Op').value = d.opacity ?? 1;
 }
 function hlPart() { if (ch) for (const [n, m] of Object.entries(ch.mats)) m.emissive.setHex(n === selPart ? 0x1b3d63 : 0); }
-function selectPart(n) { selPart = n; if (n) { selected = null; tc.detach(); refreshProps(); } hlPart(); refreshPart(); }
+function selectPart(n) { selPart = n; if (n) { selected = null; ikActive = null; tc.detach(); refreshProps(); } hlPart(); refreshPart(); }
 function refreshPart() {
   $('#partHint').hidden = !!selPart; $('#partBox').hidden = !selPart; if (!selPart) return;
   $('#partName').textContent = `Parte: ${selPart} (lados L y R juntos)`; fillTex('p', resolvePart(selPart, state.colors, state.parts));
@@ -233,7 +238,7 @@ $('#partBox').innerHTML = '<div class="hint" id="partName"></div>' + TEX_HTML('p
   '<div class="row"><button id="pAll">Aplicar a todo el cuerpo</button><button id="pReset">Restablecer</button></div>';
 bindTex('p', applyPart);
 $('#pAll').onclick = () => { if (!selPart) return; const d = resolvePart(selPart, state.colors, state.parts);
-  for (const n of Object.keys(ch.mats)) { state.parts[n] = { ...d }; updatePart(ch, n, state.colors, state.parts); } hlPart(); commit(); };
+  for (const n of PART_NAMES) { state.parts[n] = { ...d }; updatePart(ch, n, state.colors, state.parts); } hlPart(); commit(); };
 $('#pReset').onclick = () => { if (!selPart) return; delete state.parts[selPart]; updatePart(ch, selPart, state.colors, state.parts); hlPart(); refreshPart(); commit(); };
 
 // ---------- Panel: propiedades del objeto ----------
@@ -277,6 +282,51 @@ function refreshProps() {
   $('#oSock').value = selected.socket; fillTex('o', selected.mat); $('#oVis').checked = selected.node.visible;
 }
 
+// ---------- Equipo rígido ----------
+const GEAR_LABEL = { botas: 'Botas', guantes: 'Guantes', hombreras: 'Hombreras', cinturon: 'Cinturón', rodilleras: 'Rodilleras', mochila: 'Mochila' };
+$('#gearBox').innerHTML = GEAR_NAMES.map(n => `<label class="chk"><input type="checkbox" data-g="${n}"> ${GEAR_LABEL[n]}</label>`).join('');
+$('#gearBox').onchange = e => { const n = e.target.dataset.g; if (!n) return; if (e.target.checked) state.gear[n] = true; else delete state.gear[n]; rebuild(); commit(); };
+
+// ---------- Presets (conservan los objetos colocados) ----------
+fill($('#presetSel'), Object.keys(PRESETS));
+$('#presetBtn').onclick = () => {
+  const p = PRESETS[$('#presetSel').value]; select(null); selectPart(null);
+  state.seg = Object.fromEntries(Object.keys(SEGMENT_DEFAULTS).map(k => [k, { ...SEGMENT_DEFAULTS[k], ...(p.seg?.[k] || {}) }]));
+  state.colors = { ...DEFAULT_COLORS, ...(p.colors || {}) }; state.parts = clone(p.parts || {}); state.gear = clone(p.gear || {}); state.limits = {};
+  state.pose = { ...clone(NEUTRAL), ...clone(p.pose || {}) };
+  rebuild(); syncUI(); setView('persp'); commit();
+};
+
+// ---------- Cinemática inversa de manos (mínimos cuadrados amortiguados sobre hombro y codo) ----------
+const handles = {}; let ikActive = null;
+for (const s of ['L', 'R']) {
+  const h = new THREE.Mesh(new THREE.SphereGeometry(.045), new THREE.MeshBasicMaterial({ color: s === 'L' ? 0x35d07f : 0xff6b6b, depthTest: false }));
+  h.renderOrder = 20; h.visible = false; h.userData.side = s; scene.add(h); handles[s] = h;
+}
+const ikOn = () => $('#ik').checked;
+function syncIK() {
+  ch.root.updateMatrixWorld(true);
+  for (const s of ['L', 'R']) { const h = handles[s]; h.visible = ikOn(); if (h !== ikActive || !tc.dragging) ch.sockets['mano_' + s].getWorldPosition(h.position); }
+}
+function selectHandle(h) { select(null); selectPart(null); ikActive = h; tc.attach(h); tc.setSpace('world'); tc.setMode('translate'); $('#mode').value = 'translate'; }
+$('#ik').onchange = () => { if (!ikOn() && ikActive) select(null); syncIK(); };
+function ikArm(side, target) {
+  const hn = 'hombro_' + side, cn = 'codo_' + side, hand = ch.sockets['mano_' + side];
+  const [hl, hh] = limitFor(hn, state.limits), [cl, cu] = limitFor(cn, state.limits), lo = [...hl, cl[0]], hi = [...hh, cu[0]];
+  const c0 = state.pose[cn] || [0, 0, 0]; let q = [...(state.pose[hn] || [0, 0, 0]), c0[0]];
+  const ev = qq => { state.pose[hn] = [qq[0], qq[1], qq[2]]; state.pose[cn] = [qq[3], c0[1], c0[2]];
+    setPose(ch.joints, state.pose, state.limits); ch.root.updateMatrixWorld(true); return hand.getWorldPosition(new THREE.Vector3()); };
+  const A = new THREE.Matrix3();
+  for (let it = 0; it < 10; it++) {
+    const p0 = ev(q), e = target.clone().sub(p0); if (e.length() < .003) break;
+    const J = q.map((_, i) => { const qq = [...q]; qq[i] += 2; return ev(qq).sub(p0).multiplyScalar(.5); });  // columnas en m/grado
+    const m = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) m.push(J.reduce((s, col) => s + col.getComponent(r) * col.getComponent(c), 0) + (r === c ? 3e-4 : 0));
+    A.set(...m).invert(); const y = e.applyMatrix3(A);
+    q = q.map((v, i) => D.clamp(v + D.clamp(J[i].dot(y), -12, 12), lo[i], hi[i]));
+  }
+  ev(q.map(v => Math.round(v * 10) / 10));
+}
+
 // ---------- Barra superior ----------
 document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
 $('#mode').onchange = e => tc.setMode(e.target.value);
@@ -298,7 +348,7 @@ $('#file').onchange = async e => {
   try { const j = JSON.parse(await f.text()); validate(j, ch.sockets); load(j, { onlyObjects: $('#onlyObj').checked, useNorm: $('#useNorm').checked }); }
   catch (err) { alert('No se pudo importar: ' + err.message); }
 };
-$('#reset').onclick = () => { if (confirm('¿Reiniciar personaje y objetos?')) { state.seg = clone(SEGMENT_DEFAULTS); state.colors = { ...DEFAULT_COLORS }; state.limits = {}; state.parts = {}; state.pose = clone(NEUTRAL); load({ objects: [] }, { onlyObjects: true }); } };
+$('#reset').onclick = () => { if (confirm('¿Reiniciar personaje y objetos?')) { state.seg = clone(SEGMENT_DEFAULTS); state.colors = { ...DEFAULT_COLORS }; state.limits = {}; state.parts = {}; state.gear = {}; state.pose = clone(NEUTRAL); load({ objects: [] }, { onlyObjects: true }); } };
 addEventListener('keydown', e => {
   if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.key !== 'Escape') return;
   const k = e.key.toLowerCase();
