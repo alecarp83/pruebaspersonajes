@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11131d">
+  <title>Clash Blocks | Catálogo 3D</title>
+  <link rel="stylesheet" href="./personajes.css">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="world" aria-hidden="true"></canvas>
+
+  <header class="header">
+    <a class="brand" href="./index.html" aria-label="Clash Blocks, inicio">
+      <span class="brand-icon" aria-hidden="true">♜</span>
+      <span>CLASH<span class="brand-light">BLOCKS</span></span>
+      <span class="brand-tag">3D</span>
+    </a>
+
+    <button id="animation" class="button ghost" aria-pressed="true">
+      <span class="status-dot"></span>
+      <span id="animation-label">Animación activa</span>
+    </button>
+  </header>
+
+  <main class="container">
+    <section class="intro">
+      <div>
+        <p class="eyebrow">ELIGE TU PRÓXIMA LEYENDA</p>
+        <h1>Pequeños bloques.<br><span>Grandes batallas.</span></h1>
+        <p class="description">
+          Ocho guerreros, una nueva dimensión. Explora la colección,
+          gira los personajes y descubre cada detalle.
+        </p>
+      </div>
+      <div class="collection-label" aria-label="8 personajes en 3D">
+        <strong>08</strong>
+        <span>PERSONAJES<br>EN LA COLECCIÓN</span>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Controles del catálogo">
+      <label class="search">
+        <span aria-hidden="true">⌕</span>
+        <input
+          id="search"
+          type="search"
+          placeholder="Busca a tu personaje..."
+          aria-label="Buscar personajes"
+          autocomplete="off"
+        >
+        <kbd>/</kbd>
+      </label>
+
+      <div class="filters" aria-label="Filtrar por clase">
+        <button class="filter active" data-filter="Todos" aria-pressed="true">
+          Todos
+        </button>
+        <button class="filter" data-filter="Tanque" aria-pressed="false">
+          Tanques
+        </button>
+        <button class="filter" data-filter="Guerrero" aria-pressed="false">
+          Guerreros
+        </button>
+        <button class="filter" data-filter="Ágil" aria-pressed="false">
+          Ágiles
+        </button>
+      </div>
+    </section>
+
+    <div class="section-heading">
+      <h2>La colección <span id="count">08</span></h2>
+      <p>Arrastra para girar <span>·</span> Usa + y - para acercar</p>
+    </div>
+
+    <section id="catalog" class="catalog" aria-label="Catálogo de personajes"></section>
+
+    <p id="empty" class="empty" hidden>
+      No hay personajes con ese nombre. Prueba otra búsqueda.
+    </p>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <footer>
+      <span>CLASHBLOCKS / FAN PROJECT</span>
+      <span>
+        Reinterpretaciones no oficiales. Sin afiliación con Supercell o Roblox.
+      </span>
+    </footer>
+  </main>
+
+  <script type="module" src="./personajes.js"></script>
+</body>
+</html>
