@@ -69,6 +69,95 @@ const DATA = [
     color: "#ff947c",
     description: "Dos hachas, coletas naranjas y energía desbordante.",
     build: makeBerserker
+  },
+    
+  {
+    id: "rey-azul",
+    name: "Rey Azul",
+    type: "Tanque",
+    color: "#5b8def",
+    description: "Corona azul, capa real y un puño que ya ganó la partida.",
+    build: () => makeRey("blue")
+  },
+  {
+    id: "rey-rojo",
+    name: "Rey Rojo",
+    type: "Guerrero",
+    color: "#e35555",
+    description: "Corona roja, capa al viento y grito de guerra.",
+    build: () => makeRey("red")
+  },
+  {
+    id: "esbirro",
+    name: "Esbirro",
+    type: "Ágil",
+    color: "#5fd0ff",
+    description: "Alas de murciélago, cuernos y puños de sobra.",
+    build: makeEsbirro
+  },
+  {
+    id: "espiritu-curacion",
+    name: "Espíritu de Curación",
+    type: "Ágil",
+    color: "#ffe066",
+    description: "Bola brillante, lengua fuera y sonrisa contagiosa.",
+    build: makeSpiritHeal
+  },
+  {
+    id: "espiritu-hielo",
+    name: "Espíritu de Hielo",
+    type: "Ágil",
+    color: "#7fe3ff",
+    description: "Cristales helados, dientes azules y risa gélida.",
+    build: makeSpiritIce
+  },
+  {
+    id: "larry-evo",
+    name: "Larry Evo",
+    type: "Guerrero",
+    color: "#b06bff",
+    description: "Cráneo elegante, sombrero morado y espada reluciente.",
+    build: makeLarryEvo
+  },
+  {
+    id: "guardia",
+    name: "Guardia",
+    type: "Guerrero",
+    color: "#8fa3b8",
+    description: "Casco, escudo y lanza. Puro hueso disciplinado.",
+    build: makeGuardia
+  },
+  {
+    id: "fenix",
+    name: "Fénix",
+    type: "Ágil",
+    color: "#ff8a3d",
+    description: "Plumas de fuego, alas desplegadas y garras listas.",
+    build: makeFenix
+  },
+  {
+    id: "firecracker",
+    name: "Firecracker",
+    type: "Ágil",
+    color: "#ff5fa2",
+    description: "Cofia rosa, bomba dorada y sonrisa pícara.",
+    build: makeFirecracker
+  },
+  {
+    id: "bebe-dragon",
+    name: "Bebé Dragón",
+    type: "Ágil",
+    color: "#8be36b",
+    description: "Verde, panzón y con una llamita siempre encendida.",
+    build: makeBabyDragon
+  },
+  {
+    id: "barril-esqueletos",
+    name: "Barril de Esqueletos",
+    type: "Ágil",
+    color: "#c9b58c",
+    description: "Tres globos, un barril y huesos a punto de saltar.",
+    build: makeSkeletonBarrel
   }
 ];
 
@@ -724,6 +813,617 @@ function makeGolem() {
     [-0.27, 1.25, 0.57]
   ]) {
     box(root, 0.12, 0.29, 0.08, M.purpleLight, x, y, z, 0.035);
+  }
+
+  return root;
+}
+
+// ---------------------------------------------------------------------------
+// Personajes adicionales
+// ---------------------------------------------------------------------------
+
+// Rey (azul o rojo). Reutiliza `humanoid` y añade corona, capa y barba.
+function makeRey(variant = "blue") {
+  const isBlue = variant === "blue";
+  const robe   = isBlue ? M.blue   : mat("#c23a3a");
+  const robeIn = isBlue ? mat("#2a4f8f") : mat("#8f2424");
+  const trim   = isBlue ? M.lightSteel : M.gold;
+
+  const { root, head, hands } = humanoid({
+    shirt: robe,
+    pants: mat("#e8e8ee"),
+    boots: M.darkSteel,
+    width: 1.05
+  });
+
+  face(head, { angry: !isBlue, smile: isBlue });
+
+  // Barba poblada
+  box(head, 0.74, 0.5, 0.18, M.black, 0, -0.4, 0.32);
+  box(head, 0.5, 0.4, 0.14, M.black, 0, -0.55, 0.42);
+  // Bigote
+  for (const side of [-1, 1]) {
+    const m = box(head, 0.34, 0.16, 0.14, M.black,
+      side * 0.18, -0.14, 0.47);
+    m.rotation.z = side * 0.18;
+  }
+
+  // Corona
+  const crown = group(head, 0, 0.48, 0);
+  cylinder(crown, 0.5, 0.5, 0.22, M.gold, 0, 0, 0, 12);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    box(crown, 0.12, 0.22, 0.12, M.gold,
+      Math.sin(a) * 0.42, 0.17, Math.cos(a) * 0.42);
+  }
+  // Banda de color
+  cylinder(crown, 0.51, 0.51, 0.1, robeIn, 0, -0.06, 0, 12);
+  // Gema frontal
+  box(crown, 0.1, 0.1, 0.06, M.gold, 0, 0.02, 0.53);
+
+  // Capa
+  const cape = box(root, 1.15, 1.6, 0.12, robeIn, 0, 1.05, -0.42, 0.06);
+  cape.rotation.x = -0.05;
+
+  // Collar dorado
+  belt(root, 1.05, 1.5, 0.6, M.gold);
+  // Emblema frontal con forma de corona
+  extrude(root, [
+    [-0.28, 0.32], [0.28, 0.32],
+    [0.28, 0.05], [0.16, 0.05],
+    [0.16, -0.05], [0, 0.12],
+    [-0.16, -0.05], [-0.16, 0.05],
+    [-0.28, 0.05]
+  ], 0.08, M.gold, 0, 1.15, 0.44);
+
+  // Un puño cerrado (pose de ataque / saludo)
+  const fist = group(hands[1], 0, -0.02, 0.05);
+  box(fist, 0.42, 0.42, 0.42, M.skin, 0, 0, 0, 0.08);
+
+  root.scale.setScalar(1.05);
+  return root;
+}
+
+// Esbirro: diablillo azul con alas de murciélago y puños enormes.
+function makeEsbirro() {
+  const root = new THREE.Group();
+  const skin  = mat("#4aa8e8");
+  const skinD = mat("#2a6fb0");
+  const wing  = mat("#1e3d6b");
+  const hornC = mat("#1b4f7a");
+
+  // Piernas cortas
+  for (const side of [-1, 1]) {
+    box(root, 0.34, 0.5, 0.36, skinD, side * 0.28, 0.5, 0);
+    box(root, 0.4, 0.2, 0.5, skin, side * 0.28, 0.18, 0.1);
+  }
+
+  // Cuerpo redondeado
+  sphere(root, 0.78, skin, 0, 1.35, 0, [1, 0.95, 0.85]);
+  box(root, 0.9, 0.5, 0.6, skin, 0, 1.05, 0.05);
+
+  // Cabeza
+  const head = group(root, 0, 2.25, 0.05);
+  sphere(head, 0.62, skin, 0, 0, 0, [1, 0.95, 0.95]);
+
+  // Cuernos
+  for (const side of [-1, 1]) {
+    horn(head, [
+      [side * 0.22, 0.42, 0],
+      [side * 0.32, 0.75, -0.02],
+      [side * 0.26, 1.0, -0.05]
+    ], 0.13, hornC);
+  }
+
+  // Ojos enfadados
+  for (const side of [-1, 1]) {
+    const eye = box(head, 0.22, 0.14, 0.06, M.white,
+      side * 0.22, 0.08, 0.55);
+    eye.rotation.z = side * 0.22;
+    box(head, 0.09, 0.1, 0.06, M.pupil, side * 0.2, 0.06, 0.6);
+  }
+  // Boca con colmillos
+  box(head, 0.5, 0.14, 0.08, mat("#5a1a1a"), 0, -0.28, 0.55);
+  for (let i = -1; i <= 1; i++) {
+    box(head, 0.08, 0.12, 0.05, M.white, i * 0.16, -0.24, 0.6);
+  }
+
+  // Orejas puntiagudas
+  for (const side of [-1, 1]) {
+    extrude(head, [
+      [side * 0.5, 0.1], [side * 0.95, 0.25],
+      [side * 0.55, -0.1]
+    ], 0.06, skinD, 0, 0, 0);
+  }
+
+  // Brazos con puños desproporcionados
+  for (const side of [-1, 1]) {
+    const arm = group(root, side * 0.95, 1.55, 0.05);
+    arm.rotation.z = side * 0.25;
+    box(arm, 0.32, 0.9, 0.34, skin, 0, -0.35, 0);
+    // Puño gigante
+    const fist = group(arm, 0, -0.95, 0.08);
+    box(fist, 0.62, 0.6, 0.7, skinD, 0, 0, 0, 0.14);
+    for (let i = -1; i <= 1; i++) {
+      box(fist, 0.12, 0.18, 0.12, skin,
+        i * 0.18, 0.28, 0.3);
+    }
+  }
+
+  // Alas de murciélago
+  for (const side of [-1, 1]) {
+    const w = group(root, side * 0.55, 1.75, -0.45);
+    w.rotation.y = side * -0.4;
+    extrude(w, [
+      [0, 0], [side * 1.1, 0.45],
+      [side * 1.35, 0.05], [side * 1.15, -0.2],
+      [side * 0.7, -0.05], [side * 0.25, -0.35]
+    ], 0.05, wing, 0, 0, 0);
+  }
+
+  root.scale.setScalar(0.92);
+  return root;
+}
+
+// Espíritu de Curación: gota amarilla con lengua fuera y bracitos.
+function makeSpiritHeal() {
+  const root = new THREE.Group();
+  const body = mat("#ffe066", 0, 0.4, 0.6);
+  const glow = mat("#fff3a8", 0, 0.3, 1.2);
+
+  // Cuerpo
+  sphere(root, 0.85, body, 0, 1.05, 0, [1, 1.05, 1]);
+  // Gota superior
+  sphere(root, 0.4, body, 0, 1.85, 0, [1, 1.2, 1]);
+
+  // Bracitos
+  for (const side of [-1, 1]) {
+    const arm = group(root, side * 0.75, 1.15, 0.05);
+    arm.rotation.z = side * 0.7;
+    box(arm, 0.28, 0.6, 0.3, body, 0, -0.25, 0);
+  }
+
+  // Ojos grandes
+  for (const side of [-1, 1]) {
+    sphere(root, 0.2, M.white, side * 0.28, 1.25, 0.72, [1, 1, 0.5]);
+    sphere(root, 0.1, M.pupil, side * 0.28, 1.22, 0.86, [1, 1, 0.6]);
+  }
+
+  // Boca abierta + lengua
+  sphere(root, 0.32, mat("#5a1a1a"), 0, 0.85, 0.7, [1.1, 0.8, 0.4]);
+  sphere(root, 0.22, mat("#e35555"), 0, 0.72, 0.85, [1, 0.8, 0.7]);
+
+  // Halo brillante
+  const halo = mesh(
+    root,
+    new THREE.TorusGeometry(1.0, 0.05, 8, 32),
+    glow, 0, 1.05, 0
+  );
+  halo.rotation.x = Math.PI / 2;
+
+  return root;
+}
+
+// Espíritu de Hielo: bola blanca con picos de cristal azul.
+function makeSpiritIce() {
+  const root = new THREE.Group();
+  const body  = mat("#f4f9ff", 0.1, 0.35);
+  const ice   = mat("#7fe3ff", 0.25, 0.15, 0.9);
+  const iceD  = mat("#3aa8e0", 0.3, 0.2, 0.6);
+
+  // Cuerpo
+  sphere(root, 0.85, body, 0, 1.15, 0, [1, 1, 1]);
+
+  // Picos de hielo alrededor
+  const spikes = [
+    [0, 2.05, 0, 0, 0.35, 0],
+    [0.75, 1.9, 0, 0.35, 0.3, 0],
+    [-0.75, 1.9, 0, -0.35, 0.3, 0],
+    [0, 1.7, -0.85, 0, 0.3, -0.35],
+    [0.6, 1.1, 0.6, 0.25, 0.25, 0.25],
+    [-0.6, 1.1, 0.6, -0.25, 0.25, 0.25]
+  ];
+  for (const [x, y, z, dx, dy, dz] of spikes) {
+    spike(root, [x, y, z], [x + dx, y + dy * 2, z + dz], 0.18, ice);
+  }
+
+  // Ojos redondos
+  for (const side of [-1, 1]) {
+    sphere(root, 0.18, ice, side * 0.28, 1.35, 0.78, [1, 1, 0.5]);
+    sphere(root, 0.08, iceD, side * 0.28, 1.33, 0.9, [1, 1, 0.6]);
+  }
+
+  // Boca grande con dientes
+  sphere(root, 0.34, mat("#1a3a6b"), 0, 0.85, 0.72, [1.15, 0.8, 0.4]);
+  for (let i = -1; i <= 1; i++) {
+    box(root, 0.12, 0.16, 0.06, ice, i * 0.2, 0.98, 0.9);
+    box(root, 0.12, 0.16, 0.06, ice, i * 0.2, 0.72, 0.9);
+  }
+
+  // Bracitos de hielo
+  for (const side of [-1, 1]) {
+    const arm = group(root, side * 0.8, 1.15, 0.05);
+    arm.rotation.z = side * 0.8;
+    extrude(arm, [
+      [0, 0], [side * 0.55, 0.15],
+      [side * 0.6, -0.1], [side * 0.1, -0.22]
+    ], 0.12, ice, 0, 0, 0);
+  }
+
+  return root;
+}
+
+// Larry Evo: esqueleto con sombrero ruso morado y espada.
+function makeLarryEvo() {
+  const { root, head, hands } = humanoid({
+    skin: mat("#e8e4d8", 0.05, 0.7),
+    shirt: mat("#3a2a55"),
+    pants: mat("#2a1d3f"),
+    boots: M.darkSteel,
+    width: 0.8
+  });
+
+  // Cráneo: cubre la cara con formas geométricas
+  box(head, 0.86, 0.8, 0.78, mat("#efeadd", 0.05, 0.6), 0, 0, 0, 0.12);
+  // Cuencas moradas brillantes
+  for (const side of [-1, 1]) {
+    box(head, 0.24, 0.22, 0.08, mat("#7a2ff0", 0.3, 0.2, 1.4),
+      side * 0.2, 0.05, 0.4);
+  }
+  // Nariz triangular
+  spike(head, [0, -0.08, 0.42], [0, -0.22, 0.42], 0.1, M.black);
+  // Dientes
+  for (let i = -2; i <= 2; i++) {
+    box(head, 0.1, 0.14, 0.06, mat("#efeadd"),
+      i * 0.12, -0.32, 0.4);
+  }
+  // Mandíbula
+  box(head, 0.7, 0.18, 0.16, mat("#efeadd"), 0, -0.42, 0.4);
+
+  // Sombrero ruso morado (ushanka)
+  box(head, 1.0, 0.5, 0.95, mat("#4a2f8a"), 0, 0.5, -0.02, 0.16);
+  box(head, 0.75, 0.2, 0.85, mat("#e8e4d8"), 0, 0.72, -0.02, 0.1);
+  for (const side of [-1, 1]) {
+    box(head, 0.2, 0.6, 0.5, mat("#4a2f8a"), side * 0.45, 0.25, 0);
+  }
+  // Estrella frontal
+  box(head, 0.16, 0.16, 0.05, M.gold, 0, 0.5, 0.5);
+
+  // Cinturón y correa
+  belt(root, 0.9, 0.95, 0.6, M.leather);
+  const strap = box(root, 0.16, 1.0, 0.08, M.leather, 0.2, 1.35, 0.32);
+  strap.rotation.z = -0.4;
+
+  // Espada dorada
+  const weapon = group(hands[0], 0, 0.05, 0.1);
+  weapon.rotation.z = -0.25;
+  sword(weapon, 1.25, 0.22);
+
+  root.scale.set(0.94, 1.0, 0.94);
+  return root;
+}
+
+// Guardia: esqueleto con casco, escudo y lanza.
+function makeGuardia() {
+  const { root, head, hands } = humanoid({
+    skin: mat("#e8e4d8", 0.05, 0.7),
+    shirt: mat("#4a5568"),
+    pants: mat("#2f3847"),
+    boots: M.leather,
+    width: 0.82
+  });
+
+  // Cráneo
+  box(head, 0.82, 0.78, 0.76, mat("#efeadd", 0.05, 0.6), 0, 0, 0, 0.12);
+  for (const side of [-1, 1]) {
+    box(head, 0.2, 0.2, 0.08, M.black, side * 0.19, 0.05, 0.4);
+  }
+  spike(head, [0, -0.06, 0.42], [0, -0.2, 0.42], 0.09, M.black);
+  for (let i = -2; i <= 2; i++) {
+    box(head, 0.1, 0.12, 0.06, mat("#efeadd"), i * 0.12, -0.3, 0.4);
+  }
+
+  // Casco de caballero con pluma azul
+  box(head, 1.0, 0.42, 0.94, M.steel, 0, 0.42, -0.02, 0.14);
+  box(head, 0.95, 0.7, 0.2, M.steel, 0, 0.05, -0.4);
+  box(head, 0.95, 0.7, 0.2, M.steel, 0, 0.05, 0.4);
+  box(head, 0.2, 0.9, 0.94, M.steel, 0, 0.05, 0);
+  box(head, 0.3, 0.1, 0.9, M.lightSteel, 0, 0.68, -0.02);
+  // Pluma
+  extrude(head, [
+    [-0.15, 0], [0.15, 0], [0.1, 0.55], [-0.2, 0.4]
+  ], 0.06, M.blue, 0, 0.7, -0.1);
+
+  // Escudo (brazo izquierdo)
+  const shield = group(hands[0], -0.1, -0.15, 0.2);
+  box(shield, 0.9, 1.1, 0.12, M.steel, 0, 0, 0, 0.08);
+  box(shield, 0.6, 0.75, 0.14, mat("#7a4a2a"), 0, 0, 0.08);
+  box(shield, 0.2, 0.2, 0.1, M.lightSteel, 0, 0.0, 0.16);
+  box(shield, 0.3, 0.6, 0.14, M.lightSteel, 0, 0, 0);
+
+  // Lanza (brazo derecho)
+  const spear = group(hands[1], 0, 0.15, 0.1);
+  spear.rotation.z = -0.15;
+  cylinder(spear, 0.05, 0.05, 1.9, mat("#7a4a2a"), 0, 0.7, 0);
+  spike(spear, [0, 1.65, 0], [0, 2.15, 0], 0.11, M.lightSteel);
+  cylinder(spear, 0.08, 0.08, 0.16, M.gold, 0, 1.55, 0);
+
+  root.scale.set(0.94, 1.02, 0.94);
+  return root;
+}
+
+// Fénix: pájaro de fuego con alas desplegadas.
+function makeFenix() {
+  const root = new THREE.Group();
+  const body  = mat("#ff6a3d", 0.05, 0.5);
+  const flame = mat("#ffb347", 0.05, 0.4, 0.6);
+  const flameD= mat("#ff3d6a", 0.05, 0.5, 0.4);
+  const beak  = mat("#3a2a2a", 0.4, 0.4);
+
+  // Cuerpo
+  sphere(root, 0.7, body, 0, 1.35, 0, [1, 1.15, 0.85]);
+
+  // Cabeza
+  const head = group(root, 0, 2.25, 0.05);
+  sphere(head, 0.45, body, 0, 0, 0, [1, 0.95, 0.95]);
+
+  // Pico
+  spike(head, [0, -0.02, 0.4], [0, -0.12, 0.85], 0.15, beak);
+  // Cresta de fuego
+  for (let i = -1; i <= 1; i++) {
+    extrude(head, [
+      [i * 0.2, 0.35], [i * 0.3, 0.85], [i * 0.05, 0.5]
+    ], 0.06, flame, 0, 0, 0.1);
+  }
+  // Ojos
+  for (const side of [-1, 1]) {
+    sphere(head, 0.12, M.white, side * 0.2, 0.08, 0.4, [1, 1, 0.5]);
+    sphere(head, 0.06, M.pupil, side * 0.2, 0.06, 0.48, [1, 1, 0.6]);
+  }
+  // Pico inferior abierto
+  spike(head, [0, -0.25, 0.4], [0, -0.35, 0.75], 0.1, beak);
+
+  // Cola de fuego (abanico hacia atrás)
+  for (let i = -2; i <= 2; i++) {
+    extrude(root, [
+      [i * 0.18, 0.4], [i * 0.28, -0.9], [i * 0.05, -0.3]
+    ], 0.08, i === 0 ? flame : flameD,
+      0, 1.0, -0.5);
+  }
+
+  // Alas desplegadas
+  for (const side of [-1, 1]) {
+    const wing = group(root, side * 0.55, 1.65, -0.1);
+    wing.rotation.z = side * 0.25;
+    // Plumas por capas
+    for (let layer = 0; layer < 3; layer++) {
+      const y = layer * 0.18;
+      const len = 1.35 - layer * 0.15;
+      extrude(wing, [
+        [0, 0], [side * len, 0.5 + y],
+        [side * (len + 0.15), 0.2 + y],
+        [side * (len - 0.1), -0.15 + y]
+      ], 0.06, layer === 0 ? flame : body, 0, y * 0.2, 0);
+    }
+    // Puntas doradas
+    for (let i = 0; i < 3; i++) {
+      extrude(wing, [
+        [side * (1.0 + i * 0.15), 0.4],
+        [side * (1.25 + i * 0.15), 0.55],
+        [side * (1.05 + i * 0.15), 0.2]
+      ], 0.05, flame, 0, 0, 0);
+    }
+  }
+
+  // Garras
+  for (const side of [-1, 1]) {
+    const leg = group(root, side * 0.28, 0.55, 0);
+    cylinder(leg, 0.08, 0.08, 0.35, beak, 0, 0, 0);
+    for (let i = -1; i <= 1; i++) {
+      spike(leg, [i * 0.1, -0.15, 0.05],
+        [i * 0.18, -0.35, 0.35], 0.06, beak);
+    }
+  }
+
+  root.scale.setScalar(0.95);
+  return root;
+}
+
+// Firecracker: chica con cofia rosa, bomba dorada y sonrisa pícara.
+function makeFirecracker() {
+  const { root, head, hands } = humanoid({
+    shirt: M.blue,
+    pants: M.blue,
+    boots: mat("#4a2f8a"),
+    width: 0.82
+  });
+
+  face(head, { smile: true });
+  // Cofia rosa
+  box(head, 0.98, 0.3, 0.9, mat("#ff5fa2"), 0, 0.42, -0.02, 0.14);
+  box(head, 0.6, 0.18, 0.85, mat("#ff7ab8"), 0, 0.55, -0.02, 0.1);
+  // Mechones rosas laterales
+  for (const side of [-1, 1]) {
+    box(head, 0.2, 0.55, 0.7, mat("#ff5fa2"),
+      side * 0.5, -0.05, -0.05, 0.1);
+  }
+  // Cejas rosas
+  for (const side of [-1, 1]) {
+    const b = box(head, 0.28, 0.07, 0.07, mat("#ff5fa2"),
+      side * 0.22, 0.22, 0.42);
+    b.rotation.z = side * -0.1;
+  }
+
+  // Cinturón morado
+  belt(root, 0.9, 1.1, 0.6, mat("#4a2f8a"));
+
+  // Hombreras moradas
+  for (const side of [-1, 1]) {
+    box(root, 0.42, 0.22, 0.6, mat("#4a2f8a"),
+      side * 0.52, 1.65, 0, 0.08);
+  }
+
+  // Rodilleras y botas moradas
+  for (const side of [-1, 1]) {
+    box(root, 0.42, 0.16, 0.5, mat("#4a2f8a"),
+      side * 0.25, 0.72, 0.05);
+  }
+
+  // Bomba dorada sobre el hombro (brazo derecho)
+  const bomb = group(hands[1], 0, -0.2, 0.3);
+  bomb.rotation.z = 0.4;
+  sphere(bomb, 0.42, mat("#f0b429", 0.6, 0.3), 0, 0, 0, [1, 1, 1]);
+  cylinder(bomb, 0.1, 0.12, 0.16, M.darkSteel, 0, 0.45, 0);
+  // Franjas
+  for (let i = 0; i < 3; i++) {
+    const ring = mesh(
+      bomb,
+      new THREE.TorusGeometry(0.42 - i * 0.02, 0.05, 8, 20),
+      mat("#7a2ff0"), 0, -0.05 + i * 0.15, 0
+    );
+    ring.rotation.x = Math.PI / 2;
+  }
+  // Mecha
+  cylinder(bomb, 0.03, 0.03, 0.25, M.leather, 0.05, 0.6, 0);
+  sphere(bomb, 0.08, mat("#ff8a3d", 0, 0.4, 1.2), 0.08, 0.78, 0);
+
+  root.scale.set(0.96, 1.0, 0.96);
+  return root;
+}
+
+// Bebé Dragón: verde, panzón, con llamita en la boca.
+function makeBabyDragon() {
+  const root = new THREE.Group();
+  const body = mat("#8be36b", 0.05, 0.55);
+  const bodyD= mat("#5fbf47", 0.05, 0.6);
+  const belly= mat("#d8f2a8", 0.05, 0.6);
+  const hornC= mat("#4aa8e8", 0.2, 0.3);
+  const wing = mat("#5ac8e0", 0.1, 0.4, 0.3);
+  const fire = mat("#ffb347", 0, 0.3, 1.6);
+
+  // Piernas
+  for (const side of [-1, 1]) {
+    box(root, 0.4, 0.5, 0.45, bodyD, side * 0.33, 0.5, 0);
+    box(root, 0.45, 0.22, 0.6, bodyD, side * 0.33, 0.18, 0.12);
+  }
+
+  // Panza y cuerpo
+  sphere(root, 0.9, body, 0, 1.35, 0, [1, 1.05, 0.9]);
+  sphere(root, 0.65, belly, 0, 1.25, 0.35, [1, 1, 0.6]);
+
+  // Cola
+  const tail = group(root, 0, 0.9, -0.8);
+  tail.rotation.x = 0.5;
+  cylinder(tail, 0.18, 0.28, 1.1, body, 0, 0.4, 0);
+  sphere(tail, 0.2, bodyD, 0, 0.95, 0);
+
+  // Cabeza
+  const head = group(root, 0, 2.3, 0.15);
+  sphere(head, 0.62, body, 0, 0, 0, [1, 0.95, 1]);
+
+  // Cuernos
+  for (const side of [-1, 1]) {
+    horn(head, [
+      [side * 0.22, 0.5, 0], [side * 0.35, 0.85, -0.05],
+      [side * 0.3, 1.05, -0.05]
+    ], 0.13, hornC);
+  }
+
+  // Ojos grandes
+  for (const side of [-1, 1]) {
+    sphere(head, 0.16, M.white, side * 0.24, 0.1, 0.5, [1, 1, 0.5]);
+    sphere(head, 0.09, mat("#5a3a1a"), side * 0.24, 0.1, 0.6, [1, 1, 0.6]);
+  }
+  // Fosas nasales
+  for (const side of [-1, 1]) {
+    sphere(head, 0.05, bodyD, side * 0.1, -0.1, 0.6);
+  }
+
+  // Boca abierta con fuego
+  sphere(head, 0.3, mat("#5a1a1a"), 0, -0.32, 0.42, [1.1, 0.7, 0.4]);
+  for (let i = -1; i <= 1; i++) {
+    box(head, 0.1, 0.14, 0.06, M.white, i * 0.16, -0.2, 0.65);
+    box(head, 0.1, 0.14, 0.06, M.white, i * 0.16, -0.42, 0.65);
+  }
+  // Llama
+  sphere(head, 0.22, fire, 0, -0.4, 0.75, [1, 0.8, 1.2]);
+  sphere(head, 0.14, mat("#ffd166", 0, 0.3, 2), 0, -0.35, 0.9, [1, 1, 1.2]);
+
+  // Brazos
+  for (const side of [-1, 1]) {
+    const arm = group(root, side * 0.9, 1.6, 0.1);
+    arm.rotation.z = side * 0.4;
+    box(arm, 0.28, 0.6, 0.3, body, 0, -0.25, 0);
+    box(arm, 0.34, 0.28, 0.36, bodyD, 0, -0.6, 0.05, 0.08);
+  }
+
+  // Alas
+  for (const side of [-1, 1]) {
+    const w = group(root, side * 0.5, 1.7, -0.4);
+    w.rotation.y = side * -0.5;
+    w.rotation.z = side * 0.2;
+    extrude(w, [
+      [0, 0], [side * 1.1, 0.35],
+      [side * 1.3, -0.05], [side * 0.9, -0.25],
+      [side * 0.4, -0.05]
+    ], 0.06, wing, 0, 0, 0);
+  }
+
+  root.scale.setScalar(0.95);
+  return root;
+}
+
+// Barril de Esqueletos: barril con globos azules y calavera.
+function makeSkeletonBarrel() {
+  const root = new THREE.Group();
+
+  // Barril
+  const barrel = group(root, 0, 0.95, 0);
+  cylinder(barrel, 0.85, 0.85, 1.4, mat("#7a4a2a"), 0, 0, 0, 16);
+  // Aros metálicos
+  for (let i = -1; i <= 1; i++) {
+    const ring = mesh(
+      barrel,
+      new THREE.TorusGeometry(0.87, 0.06, 8, 24),
+      M.darkSteel, 0, i * 0.45, 0
+    );
+    ring.rotation.x = Math.PI / 2;
+  }
+  // Duelas (líneas verticales)
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    box(barrel, 0.05, 1.35, 0.05, mat("#5a3520"),
+      Math.sin(a) * 0.84, 0, Math.cos(a) * 0.84);
+  }
+  // Púas metálicas
+  for (const [x, y] of [[-0.75, 0.3], [0.75, 0.3], [-0.75, -0.3], [0.75, -0.3]]) {
+    spike(barrel, [x, y, 0], [x * 1.3, y, 0], 0.11, M.lightSteel);
+  }
+  // Calavera frontal
+  box(barrel, 0.6, 0.55, 0.06, mat("#efeadd"), 0, 0.05, 0.86);
+  for (const side of [-1, 1]) {
+    box(barrel, 0.18, 0.18, 0.06, M.black, side * 0.14, 0.13, 0.9);
+  }
+  spike(barrel, [0, -0.05, 0.88], [0, -0.18, 0.88], 0.07, M.black);
+  for (let i = -2; i <= 2; i++) {
+    box(barrel, 0.08, 0.1, 0.05, mat("#efeadd"), i * 0.1, -0.24, 0.88);
+  }
+
+  // Cuerda superior
+  cylinder(root, 0.04, 0.04, 0.6, M.leather, 0, 1.95, 0);
+
+  // Globos azules
+  const balloonPos = [
+    [0, 2.85, 0],
+    [-0.55, 2.7, 0.1],
+    [0.55, 2.7, 0.1]
+  ];
+  for (const [x, y, z] of balloonPos) {
+    sphere(root, 0.55, mat("#3aa8e8", 0, 0.3), x, y, z, [1, 1.1, 1]);
+    // Nudo
+    cylinder(root, 0.06, 0.04, 0.1, mat("#3aa8e8"), x, y - 0.65, z);
+    // Cuerda hasta el barril
+    cylinder(root, 0.015, 0.015, 1.0, M.leather, x * 0.7, y - 1.15, z * 0.5);
   }
 
   return root;
