@@ -9,4 +9,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#9ec5e8;font:14px syst
 #btns button{height:84px;border-radius:50%;border:2px solid #fff8;background:#0006;color:#fff;font:600 14px system-ui,sans-serif;touch-action:none;cursor:pointer}
 #btns button:active,#btns button.on{background:#e9a23be0}
 #bAtk{background:#c0392b99}
-#bWalk{grid-column:1/3;height:60px;border-radius:30px}
+#bCrouch{grid-column:1/3;height:60px;border-radius:30px}
+#ctx{position:fixed;right:20px;bottom:206px;display:flex;flex-direction:column;gap:10px;z-index:2}
+#ctx button{padding:12px 22px;border-radius:30px;border:2px solid #fff8;background:#2e8b57e6;color:#fff;font:600 15px system-ui,sans-serif;touch-action:none;cursor:pointer}
+#ctx button[hidden]{display:none}
