@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { SEGMENT_DEFAULTS, NEUTRAL, buildCharacter, setPose } from '../character/character.js';
+import { SEGMENT_DEFAULTS, NEUTRAL, buildCharacter, setPose, disposeCharacter, sideSeg } from '../character/character.js';
 import { LIBRARY, createObject } from '../objects/library.js';
 
 const $ = s => document.querySelector(s), D = THREE.MathUtils, clone = o => JSON.parse(JSON.stringify(o));
@@ -57,11 +57,12 @@ ground.castShadow = false; shadow.visible = false;  // sombras reales: se oculta
 // ---------- Personaje (mismo esqueleto que el editor) ----------
 let ch = null, base = {}, limits = {}, baseY = 0;
 function loadChar(j) {
-  if (ch) scene.remove(ch.root);
+  if (ch) { scene.remove(ch.root); disposeCharacter(ch); }
   const seg = { ...clone(SEGMENT_DEFAULTS), ...(j.character?.segments || {}) };
   const colors = { piel: '#d9b08c', base: '#4a6fa5', ...(j.character?.colors || {}) };
   limits = j.character?.joints || {}; base = { ...clone(NEUTRAL), ...clone(j.pose?.rotations || {}) };
-  ch = buildCharacter(seg, colors, j.character?.parts || {}, j.character?.gear || {});
+  const segR = j.character?.segmentsR || {};  // asimetría: ajustes del lado derecho
+  ch = buildCharacter(seg, colors, j.character?.parts || {}, j.character?.gear || {}, segR);
   ch.root.traverse(n => { if (n.userData.marker) n.visible = false; });
   for (const d of j.objects || []) {
     if (!LIBRARY[d.type] || !ch.sockets[d.socket]) continue;
@@ -70,9 +71,11 @@ function loadChar(j) {
     n.visible = d.visible !== false; ch.sockets[d.socket].add(n);
   }
   baseY = ch.joints.cintura.position.y; scene.add(ch.root);
-  legs = [seg.muslo.length, seg.pantorrilla.length];
+  const leg = sd => [sideSeg(seg, segR, sd, 'muslo').length, sideSeg(seg, segR, sd, 'pantorrilla').length];
+  legs = leg('L')[0] + leg('L')[1] >= leg('R')[0] + leg('R')[1] ? leg('L') : leg('R');  // la pierna más larga toca el suelo
   const reach = seg.brazo.length + (seg.antebrazo.length + seg.mano.length / 2) * Math.cos(D.degToRad(70));
   buildAnims(D.radToDeg(Math.asin(D.clamp((.28 - ch.joints.hombro_L.position.x) / reach, -.4, .4))));
+  setWeapon(pickWeapon(j.objects));
 }
 
 // ---------- Entrada: joystick, botones y teclado ----------
@@ -102,11 +105,66 @@ addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------- Animación procedural (valores en la convención del editor) ----------
-const KF = [[0, { hombro_R: [140, 0, -10], codo_R: [60, 0, 0], cintura: [0, -35, 0] }],
-  [.16, { hombro_R: [140, 0, -10], codo_R: [60, 0, 0], cintura: [0, -35, 0] }],
-  [.28, { hombro_R: [20, 0, -15], codo_R: [10, 0, 0], cintura: [0, 30, 0] }],
-  [.5, { hombro_R: [20, 0, -15], codo_R: [10, 0, 0], cintura: [0, 30, 0] }]];
-const ATK_LEN = .5;
+// ---------- Ataques: el tipo depende del arma que lleve el personaje en la mano ----------
+// Cada fotograma clave describe el lado derecho (valores en la convención del editor); para armas en la mano izquierda se espeja.
+// Tipos (campo `atk` de la biblioteca de objetos): slash, thrust, smash, bash, shoot, cast. Sin arma: punch.
+const K = (h, c, ci, w = [0, 0, 0]) => ({ hombro_R: h, codo_R: c, muneca_R: w, cintura: ci });
+const SL = [K([140, 0, -10], [60, 0, 0], [0, -35, 0]), K([20, 0, -15], [10, 0, 0], [0, 30, 0])];
+const TH = [K([-20, 0, -10], [70, 0, 0], [0, -25, 0], [-70, 0, 0]), K([60, 0, -5], [8, 0, 0], [0, 18, 0], [-60, 0, 0])];
+const SM = [K([165, 0, -8], [35, 0, 0], [-12, 0, 0]), K([25, 0, -10], [5, 0, 0], [35, 0, 0])];
+const PU = [K([10, 0, -10], [100, 0, 0], [0, -25, 0]), K([85, 0, -5], [8, 0, 0], [0, 25, 0])];
+const SH = [K([40, 0, -8], [40, 0, 0], [0, -10, 0], [-30, 0, 0]), K([85, 0, -4], [4, 0, 0], [0, 0, 0], [-40, 0, 0])];
+const CA = [K([130, 0, -12], [30, 0, 0], [-8, 0, 0]), K([85, 0, -6], [6, 0, 0], [12, 0, 0], [-40, 0, 0])];
+// len = duración, hit = instante del impacto/disparo, reach = alcance cuerpo a cuerpo (m), power = fuerza del golpe, lunge = [desde, hasta, velocidad] del impulso
+const ATTACKS = {
+  slash: { len: .5, hit: .26, reach: 1.9, power: .5, lunge: [.16, .3, 3], kf: [[0, SL[0]], [.16, SL[0]], [.28, SL[1]], [.5, SL[1]]] },
+  thrust: { len: .46, hit: .24, reach: 2.3, power: .4, lunge: [.14, .26, 3.5], kf: [[0, TH[0]], [.16, TH[0]], [.26, TH[1]], [.46, TH[1]]] },
+  smash: { len: .62, hit: .38, reach: 1.7, power: .9, lunge: [.24, .4, 1.5], kf: [[0, SM[0]], [.26, SM[0]], [.4, SM[1]], [.62, SM[1]]] },
+  punch: { len: .4, hit: .2, reach: 1.5, power: .35, lunge: [.1, .22, 2], kf: [[0, PU[0]], [.1, PU[0]], [.22, PU[1]], [.4, PU[1]]] },
+  bash: { len: .4, hit: .2, reach: 1.5, power: .55, lunge: [.1, .22, 2.5], kf: [[0, PU[0]], [.1, PU[0]], [.22, PU[1]], [.4, PU[1]]] },
+  shoot: { len: .45, hit: .14, proj: 'bala', kf: [[0, SH[0]], [.14, SH[1]], [.45, SH[1]]] },
+  cast: { len: .55, hit: .3, proj: 'magia', kf: [[0, CA[0]], [.22, CA[0]], [.34, CA[1]], [.55, CA[1]]] },
+};
+const flip = j => j.endsWith('_R') ? j.slice(0, -1) + 'L' : j.endsWith('_L') ? j.slice(0, -1) + 'R' : j;
+const mirrorPose = p => Object.fromEntries(Object.entries(p).map(([j, v]) => [flip(j), [v[0], -v[1], -v[2]]]));
+let atkDef = makeAttack(null);
+function makeAttack(w) {
+  const d = ATTACKS[w?.atk] || ATTACKS.punch, side = w ? w.side : 'R';
+  return { ...d, side, lunge: d.lunge || [0, 0, 0], proj: d.proj ? (w?.proj || d.proj) : null,
+    kf: side === 'L' ? d.kf.map(([t, p]) => [t, mirrorPose(p)]) : d.kf };
+}
+// Arma = primer objeto visible en una mano con tipo de ataque (se prefiere la mano derecha).
+function pickWeapon(objs) {
+  const c = (objs || []).filter(o => o.visible !== false && LIBRARY[o.type]?.atk && /^mano_[LR]$/.test(o.socket));
+  const w = c.find(o => o.socket === 'mano_R') || c[0];
+  return w ? { name: LIBRARY[w.type].label, atk: LIBRARY[w.type].atk, proj: LIBRARY[w.type].proj, side: w.socket.slice(-1) } : null;
+}
+function setWeapon(w) { atkDef = makeAttack(w); $('#weapon').textContent = w ? 'Arma: ' + w.name : 'Sin arma (puños)'; }
+
+// Proyectiles (flechas, balas, magia): vuelan en línea recta y golpean al muñeco.
+const PROJ = {
+  flecha: { speed: 18, power: .4, life: 1.2, geo: new THREE.CylinderGeometry(.012, .012, .55, 6), mat: new THREE.MeshStandardMaterial({ color: 0xd9c9a0 }) },
+  bala: { speed: 32, power: .3, life: .9, geo: new THREE.SphereGeometry(.04, 8, 6), mat: new THREE.MeshBasicMaterial({ color: 0xffd25a }) },
+  magia: { speed: 10, power: .7, life: 1.4, geo: new THREE.SphereGeometry(.11, 14, 10), mat: new THREE.MeshBasicMaterial({ color: 0x66ccff }) },
+};
+const shots = [];
+function fire(kind) {
+  const P = PROJ[kind] || PROJ.bala, dir = new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY));
+  ch.root.updateMatrixWorld(true);
+  const mesh = new THREE.Mesh(P.geo, P.mat); mesh.castShadow = true;
+  mesh.position.copy(ch.sockets['mano_' + atkDef.side].getWorldPosition(new THREE.Vector3())).addScaledVector(dir, .4);
+  if (kind === 'flecha') mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  scene.add(mesh); shots.push({ mesh, dir, P, life: P.life });
+}
+function updateShots(dt) {
+  for (let i = shots.length - 1; i >= 0; i--) {
+    const s = shots[i], m = s.mesh.position; m.addScaledVector(s.dir, s.P.speed * dt); s.life -= dt;
+    let dead = s.life <= 0 || Math.abs(m.x) > BOUND + 2 || Math.abs(m.z) > BOUND + 2;
+    if (Math.hypot(m.x - dummy.position.x, m.z - dummy.position.z) < .55 && m.y > 0 && m.y < 1.95) { hitT = Math.max(hitT, s.P.power); dead = true; }
+    else if (solids.some(t => Math.hypot(m.x - t.x, m.z - t.z) < .3)) dead = true;
+    if (dead) { scene.remove(s.mesh); shots.splice(i, 1); }
+  }
+}
 const P2 = (z, h, c, ci, ca, ro) => ({ hombro_L: [h, 0, z], hombro_R: [h, 0, -z], codo_L: [c, 0, 0], codo_R: [c, 0, 0], cintura: [ci, 0, 0],
   cadera_L: [ca, 0, 0], cadera_R: [ca, 0, 0], rodilla_L: [ro, 0, 0], rodilla_R: [ro, 0, 0] });
 let ANIMS = {}, CARRY = {}, legs = [.43, .42];
@@ -132,7 +190,7 @@ function kfAt(KF, t) {
 }
 
 // ---------- Estado y bucle ----------
-const pos = new THREE.Vector3(0, 0, 4), facing = Math.PI, G = 18;
+const pos = new THREE.Vector3(0, 0, 4), G = 18;
 let crAmt = 0, rotY = Math.PI, vy = 0, air = false, landT = 0, atkT = -1, phase = 0, moveAmt = 0, hitDone = false, last = performance.now();
 
 function step(dt, t) {
@@ -166,10 +224,13 @@ function step(dt, t) {
     if (act.t > ANIMS[act.name].len) { if (act.name === 'drop' && held) { held.mesh.position.copy(held.to); held.mesh.rotation.set(0, rotY, 0); held.state = 'ground'; held = null; } act = null; }
   }
   if (atkT >= 0) {
-    atkT += dt; if (atkT > .16 && atkT < .3) { dx += Math.sin(rotY) * 3; dz += Math.cos(rotY) * 3; }
-    if (!hitDone && atkT > .26) { hitDone = true; const ox = dummy.position.x - pos.x, oz = dummy.position.z - pos.z;
-      if (Math.hypot(ox, oz) < 1.9 && ox * Math.sin(rotY) + oz * Math.cos(rotY) > .3) hitT = .5; }
-    if (atkT > ATK_LEN) atkT = -1;
+    const A = atkDef; atkT += dt;
+    if (atkT > A.lunge[0] && atkT < A.lunge[1]) { dx += Math.sin(rotY) * A.lunge[2]; dz += Math.cos(rotY) * A.lunge[2]; }
+    if (!hitDone && atkT > A.hit) { hitDone = true;
+      if (A.proj) fire(A.proj);
+      else { const ox = dummy.position.x - pos.x, oz = dummy.position.z - pos.z;
+        if (Math.hypot(ox, oz) < A.reach && ox * Math.sin(rotY) + oz * Math.cos(rotY) > .3) hitT = A.power; } }
+    if (atkT > A.len) atkT = -1;
   }
   // movimiento horizontal con colisiones simples
   const nx = pos.x + dx * dt, nz = pos.z + dz * dt;
@@ -201,7 +262,7 @@ function step(dt, t) {
   if (act) { const a = ANIMS[act.name], k = kfAt(a.kf, Math.min(act.t, a.len)), env = D.smoothstep(Math.min(act.t / .1, (a.len - act.t) / .12), 0, 1);
     for (const j in k) { const v = p[j] || [0, 0, 0]; p[j] = v.map((x, n) => x + (k[j][n] - x) * env); }
     drop = (1 - env) * drop + env * legDrop(k.cadera_L[0], k.rodilla_L[0]); }
-  if (atkT >= 0) { const k = kfAt(KF, atkT), env = D.smoothstep(Math.min(atkT / .1, (ATK_LEN - atkT) / .15), 0, 1);
+  if (atkT >= 0) { const A = atkDef, k = kfAt(A.kf, atkT), env = D.smoothstep(Math.min(atkT / .1, (A.len - atkT) / .15), 0, 1);
     for (const j in k) { const v = p[j] || [0, 0, 0]; p[j] = v.map((a, n) => a + (k[j][n] - a) * env); } }
   yOff -= drop;
   setPose(ch.joints, p, limits);
@@ -221,6 +282,7 @@ function step(dt, t) {
     if (Math.hypot(m.x - dummy.position.x, m.z - dummy.position.z) < .55 && m.y < 1.9) { hitT = .5; c.vx = c.vz = 0; }
     const gy = groundAt(m.x, m.z) + .25; if (m.y <= gy && c.vy < 0) { m.y = gy; c.state = 'ground'; c.mesh.rotation.set(0, rotY, 0); }
   }
+  updateShots(dt);
   const near = !held && !act && !air && atkT < 0 ? nearCrate() : null;
   crates.forEach(c => c.mesh.material.emissive.setHex(c === near ? 0x664400 : 0));
   setShown('#bGrab', !!near); setShown('#bDrop', !!held && !act); setShown('#bThrow', !!held && !act);

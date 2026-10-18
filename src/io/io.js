@@ -1,5 +1,5 @@
 import { LIBRARY } from '../objects/library.js';
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function download(name, obj) {
   const a = document.createElement('a');

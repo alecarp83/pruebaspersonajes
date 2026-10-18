@@ -1,7 +1,12 @@
 // Presets de personaje: medidas parciales (se mezclan con SEGMENT_DEFAULTS), colores, texturas por parte, equipo y pose.
+// `segR` (opcional) = ajustes propios del lado derecho de brazos/piernas: crea un personaje asimétrico.
+import { SEGMENT_DEFAULTS } from './character.js';
 const M = (tex, color, color2, extra = {}) => ({ tex, color, color2, ...extra });
 const ARMS_OUT = { hombro_L: [0, 0, 30], hombro_R: [0, 0, -30] };
 const metal = (c, c2, o = {}) => M('metal', c, c2, { metalness: .9, roughness: .32, ...o });
+const BODY = ['cabeza', 'cuello', 'torso', 'pelvis', 'brazo', 'antebrazo', 'mano', 'muslo', 'pantorrilla', 'pie'];
+const all = (style, names = BODY) => Object.fromEntries(names.map(n => [n, style]));
+const scaled = (k, kw = k) => Object.fromEntries(Object.entries(SEGMENT_DEFAULTS).map(([n, v]) => [n, { length: +(v.length * k).toFixed(3), width: +(v.width * kw).toFixed(3) }]));
 const ghost = (op) => M('liso', '#dff1ff', '#ffffff', { opacity: op, roughness: .25 });
 
 export const PRESETS = {
@@ -77,5 +82,59 @@ export const PRESETS = {
       brazo: M('camuflaje', '#7a4aa0', '#2f7a3a'), antebrazo: M('camuflaje', '#7a4aa0', '#2f7a3a'), mano: M('piel', '#8a2f2f', '#4a1010'),
       muslo: M('piel', '#5d8a3a', '#2f4d1f'), pantorrilla: M('piel', '#5d8a3a', '#2f4d1f'), hombreras: metal('#6b6f78', '#2e3036', { metalness: .7, roughness: .5 }) },
     gear: { hombreras: true }, pose: { hombro_L: [0, 0, 26], hombro_R: [0, 0, -26] },
+    segR: { brazo: { length: .55, width: .28 }, antebrazo: { length: .5, width: .3 }, mano: { length: .38, width: .26 } },  // brazo derecho enorme
+  },
+
+  caballero: {
+    seg: { cabeza: { length: .25, width: .2 }, torso: { length: .58, width: .42 }, pelvis: { width: .34 }, brazo: { width: .12 }, antebrazo: { width: .1 }, muslo: { width: .15 }, pantorrilla: { width: .11 } },
+    colors: { piel: '#d9b08c', base: '#8a8f99' },
+    parts: { ...all(metal('#8a8f99', '#4a4f58'), ['torso', 'brazo', 'antebrazo', 'muslo', 'pantorrilla']), cabeza: metal('#aab0b8', '#555c66'), cuello: M('liso', '#2b2f36', '#111111'),
+      pelvis: metal('#6b7480', '#3a3f48'), mano: metal('#6b7480', '#3a3f48'), pie: metal('#6b7480', '#3a3f48'),
+      cinturon: M('cuero', '#4a3320', '#2a1b10', { roughness: .7 }), hombreras: metal('#c3cad2', '#6b7480'), rodilleras: metal('#c3cad2', '#6b7480') },
+    gear: { hombreras: true, rodilleras: true, botas: true, guantes: true, cinturon: true }, pose: { hombro_L: [0, 0, 28], hombro_R: [0, 0, -28] },
+  },
+
+  ninja: {
+    seg: { cabeza: { width: .16 }, torso: { width: .3 }, brazo: { width: .075 }, antebrazo: { width: .065 }, muslo: { width: .1 }, pantorrilla: { width: .08 } },
+    colors: { piel: '#d9b08c', base: '#1f2330' },
+    parts: { ...all(M('tela', '#1f2330', '#10131a')), mano: M('tela', '#1f2330', '#10131a'), cinturon: M('cuero', '#a02a2a', '#601010', { roughness: .6 }), botas: M('tela', '#10131a', '#05060a') },
+    gear: { botas: true, cinturon: true }, pose: { hombro_L: [0, 0, 20], hombro_R: [0, 0, -20], cintura: [8, 0, 0] },
+  },
+
+  mago: {
+    seg: { cabeza: { length: .25, width: .17 }, torso: { length: .6, width: .3 }, pelvis: { width: .28 }, brazo: { width: .075 }, antebrazo: { width: .065 }, muslo: { width: .11 }, pantorrilla: { width: .085 } },
+    colors: { piel: '#d9b08c', base: '#4b2f8a' },
+    parts: { torso: M('tela', '#4b2f8a', '#2f1d5e'), brazo: M('tela', '#4b2f8a', '#2f1d5e'), antebrazo: M('tela', '#4b2f8a', '#2f1d5e'),
+      pelvis: M('tela', '#3a2470', '#241548'), muslo: M('tela', '#3a2470', '#241548'), pantorrilla: M('tela', '#3a2470', '#241548'), pie: M('cuero', '#2a1b10', '#120a05'),
+      cinturon: M('cuero', '#d6b13a', '#8a6d1a', { roughness: .5 }), botas: M('cuero', '#2a1b10', '#120a05') },
+    gear: { cinturon: true, botas: true }, pose: { hombro_L: [0, 0, 25], hombro_R: [0, 0, -25], cabeza: [5, 0, 0] },
+  },
+
+  esqueleto: {
+    seg: { cuello: { width: .05 }, torso: { width: .26 }, pelvis: { width: .22 }, brazo: { width: .05 }, antebrazo: { width: .045 }, mano: { width: .07 }, muslo: { width: .06 }, pantorrilla: { width: .05 }, pie: { width: .07 } },
+    colors: { piel: '#e8e2cf', base: '#e8e2cf' },
+    parts: all(M('liso', '#e8e2cf', '#b8b098', { roughness: .7 })), gear: {},
+    pose: { hombro_L: [0, 0, 22], hombro_R: [0, 0, -22], cabeza: [0, 0, 8], cintura: [6, 0, 0] },
+  },
+
+  gigante: {
+    seg: scaled(1.4), colors: { piel: '#c9996a', base: '#5a4a3a' },
+    parts: { torso: M('cuero', '#5a4a3a', '#33281c'), pelvis: M('cuero', '#4a3a2a', '#2a1f14'), muslo: M('tela', '#4a4036', '#2c261f'), pantorrilla: M('tela', '#4a4036', '#2c261f'),
+      cinturon: M('cuero', '#3a2412', '#1f1209'), botas: M('cuero', '#2a1b10', '#120a05') },
+    gear: { cinturon: true, botas: true }, pose: { hombro_L: [0, 0, 34], hombro_R: [0, 0, -34], cintura: [6, 0, 0] },
+  },
+
+  duende: {
+    seg: { ...scaled(.6), cabeza: { length: .3, width: .24 } }, colors: { piel: '#7fb069', base: '#8a5a2b' },
+    parts: { torso: M('tela', '#8a5a2b', '#5a3a18'), pelvis: M('tela', '#5a3a18', '#38230e'), muslo: M('tela', '#5a3a18', '#38230e'), pantorrilla: M('tela', '#5a3a18', '#38230e'), botas: M('cuero', '#3a2a1c', '#1f150c') },
+    gear: { botas: true }, pose: { hombro_L: [0, 0, 32], hombro_R: [0, 0, -32] },
+  },
+
+  pirata: {  // asimétrico: pierna derecha muy delgada (pata de palo)
+    seg: { torso: { width: .38 } }, colors: { piel: '#d9a77c', base: '#8a1f2f' },
+    parts: { torso: M('rayas', '#f0e6d2', '#8a1f2f'), pelvis: M('tela', '#2a2a35', '#16161e'), muslo: M('tela', '#2a2a35', '#16161e'), pantorrilla: M('tela', '#2a2a35', '#16161e'),
+      cinturon: M('cuero', '#4a3320', '#2a1b10', { roughness: .7 }), botas: M('cuero', '#2a1b10', '#120a05') },
+    segR: { pantorrilla: { length: .42, width: .05 }, pie: { length: .14, width: .06 } },
+    gear: { cinturon: true, botas: true }, pose: ARMS_OUT,
   },
 };

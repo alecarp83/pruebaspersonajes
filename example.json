@@ -1,17 +1,120 @@
 {
-  "schemaVersion": 1,
-  "character": { "name": "personaje_01", "units": "m", "symmetric": true,
-    "segments": { "torso": { "length": 0.55, "width": 0.34 } },
-    "colors": { "piel": "#d9b08c", "base": "#4a6fa5" }, "joints": {} },
-  "pose": { "name": "A-pose", "rotations": { "hombro_L": [0, 0, 30], "hombro_R": [0, 0, -30] } },
+  "schemaVersion": 2,
+  "character": {
+    "name": "personaje_01",
+    "units": "m",
+    "symmetric": false,
+    "segments": {
+      "torso": {
+        "length": 0.55,
+        "width": 0.34
+      }
+    },
+    "colors": {
+      "piel": "#d9b08c",
+      "base": "#4a6fa5"
+    },
+    "joints": {},
+    "gear": {
+      "botas": true,
+      "cinturon": true
+    },
+    "segmentsR": {
+      "brazo": {
+        "length": 0.34,
+        "width": 0.1
+      }
+    }
+  },
+  "pose": {
+    "name": "A-pose",
+    "rotations": {
+      "hombro_L": [
+        0,
+        0,
+        30
+      ],
+      "hombro_R": [
+        0,
+        0,
+        -30
+      ]
+    }
+  },
   "objects": [
-    { "id": "obj_001", "type": "espada", "socket": "mano_R",
-      "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
-      "normalized": { "position": [0, 0, 0], "referenceLength": 0.18 },
-      "material": { "color": "#b0b0b8", "metalness": 0.8, "roughness": 0.35 }, "visible": true, "mirrorOf": null },
-    { "id": "obj_002", "type": "mochila", "socket": "espalda",
-      "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
-      "normalized": { "position": [0, 0, 0], "referenceLength": 0.55 },
-      "material": { "color": "#4d6b3a", "metalness": 0, "roughness": 0.9 }, "visible": true, "mirrorOf": null }
+    {
+      "id": "obj_001",
+      "type": "espada",
+      "socket": "mano_R",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "normalized": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "referenceLength": 0.18
+      },
+      "material": {
+        "color": "#b0b0b8",
+        "metalness": 0.8,
+        "roughness": 0.35
+      },
+      "visible": true,
+      "mirrorOf": null
+    },
+    {
+      "id": "obj_002",
+      "type": "mochila",
+      "socket": "espalda",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "normalized": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "referenceLength": 0.55
+      },
+      "material": {
+        "color": "#4d6b3a",
+        "metalness": 0,
+        "roughness": 0.9
+      },
+      "visible": true,
+      "mirrorOf": null
+    }
   ]
 }

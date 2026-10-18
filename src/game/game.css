@@ -2,6 +2,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#9ec5e8;font:14px syst
 #view,#view canvas{position:fixed;inset:0;display:block}
 #top{position:fixed;top:8px;left:8px;display:flex;gap:8px;align-items:center;z-index:2}
 #top a,#top button{background:#000a;color:#fff;border:0;border-radius:6px;padding:7px 11px;text-decoration:none;font:inherit;cursor:pointer}
+#weapon{background:#000a;color:#fff;border-radius:6px;padding:4px 8px}
 #msg{background:#000a;color:#fff;border-radius:6px;padding:4px 8px;display:none}
 #joy{position:fixed;left:24px;bottom:28px;width:130px;height:130px;border-radius:50%;background:#0004;border:2px solid #fff8;touch-action:none;z-index:2}
 #knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px;border-radius:50%;background:#fffd;pointer-events:none}

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeMaterial } from './textures.js';
+import { disposeTree } from './dispose.js';
 
 // Convención: Y arriba, Z hacia delante, unidades en metros.
 // Lado izquierdo (L) = +X, derecho (R) = -X (anatomía real vista de frente a +Z).
@@ -44,12 +45,19 @@ export function setPose(joints, pose, over = {}) {
   }
 }
 
-export function characterHeight(s) {
-  return s.pantorrilla.length + s.muslo.length + 0.07 + s.pelvis.length + s.torso.length + s.cuello.length + s.cabeza.length;
+// Segmentos que existen a ambos lados y pueden diferir (asimetría). segR = ajustes propios del lado derecho.
+export const PAIRED = ['brazo', 'antebrazo', 'mano', 'muslo', 'pantorrilla', 'pie'];
+export const sideSeg = (seg, segR, side, n) => (side === 'R' && segR && segR[n]) ? { ...seg[n], ...segR[n] } : seg[n];
+const legLen = (seg, segR, side) => sideSeg(seg, segR, side, 'muslo').length + sideSeg(seg, segR, side, 'pantorrilla').length;
+// La pierna más larga es la que toca el suelo; la otra queda colgando si es más corta.
+export const legTotal = (seg, segR = {}) => Math.max(legLen(seg, segR, 'L'), legLen(seg, segR, 'R'));
+
+export function characterHeight(s, segR = {}) {
+  return legTotal(s, segR) + 0.07 + s.pelvis.length + s.torso.length + s.cuello.length + s.cabeza.length;
 }
 
 // Cada articulación es un pivote; la malla del segmento cuelga desplazada del pivote proximal.
-export function buildCharacter(seg, colors, parts = {}, gear = {}) {
+export function buildCharacter(seg, colors, parts = {}, gear = {}, segR = {}) {
   const root = new THREE.Group(), joints = {}, sockets = {}, refLen = {};
   const mats = {}; for (const n of [...PART_NAMES, ...GEAR_NAMES]) mats[n] = makeMaterial(resolvePart(n, colors, parts));
   const pivot = (n, p, x = 0, y = 0, z = 0) => { const o = new THREE.Object3D(); o.name = n; o.position.set(x, y, z); p.add(o); joints[n] = o; return o; };
@@ -63,9 +71,9 @@ export function buildCharacter(seg, colors, parts = {}, gear = {}) {
     const d = new THREE.Mesh(new THREE.SphereGeometry(.016), new THREE.MeshBasicMaterial({ color: 0xffb020, depthTest: false }));
     d.renderOrder = 10; d.userData.marker = true; o.add(d);
   };
-  const { cabeza, cuello, torso, pelvis, brazo, antebrazo, mano, muslo, pantorrilla, pie } = seg;
+  const { cabeza, cuello, torso, pelvis } = seg;
 
-  const cin = pivot('cintura', root, 0, pantorrilla.length + muslo.length + .07 + pelvis.length / 2);
+  const cin = pivot('cintura', root, 0, legTotal(seg, segR) + .07 + pelvis.length / 2);
   mesh(cin, box(pelvis.width, pelvis.length, pelvis.width * .6), 'pelvis');
   if (gear.cinturon) { const z = pelvis.width * .6 * .56; mesh(cin, box(pelvis.width * 1.08, .06, pelvis.width * .6 * 1.12), 'cinturon', pelvis.length / 2 - .03); mesh(cin, box(.07, .07, .03), 'cinturon', pelvis.length / 2 - .03, z + .01); }
   const tor = pivot('torso', cin, 0, pelvis.length / 2);
@@ -81,6 +89,8 @@ export function buildCharacter(seg, colors, parts = {}, gear = {}) {
   sock('espalda', tor, torso.length, 0, torso.length * .6, -torso.width * .3, 0, Math.PI); // +Z local = hacia atrás
 
   for (const [s, k] of [['L', 1], ['R', -1]]) {
+    const S = n => sideSeg(seg, segR, s, n);
+    const brazo = S('brazo'), antebrazo = S('antebrazo'), mano = S('mano'), muslo = S('muslo'), pantorrilla = S('pantorrilla'), pie = S('pie');
     const h = pivot('hombro_' + s, tor, k * (torso.width / 2 + brazo.width * .25), torso.length - brazo.width / 2);
     mesh(h, cap(brazo.length, brazo.width), 'brazo', -brazo.length / 2);
     jsph(h, brazo.width * .56, 'brazo');
@@ -132,4 +142,11 @@ export function updatePart(ch, name, colors, parts) {
   const nm = makeMaterial(resolvePart(name, colors, parts)), old = ch.mats[name];
   ch.root.traverse(o => { if (o.isMesh && o.userData.part === name) o.material = nm; });
   ch.mats[name] = nm; old.map?.dispose(); old.dispose();
+}
+
+// Libera todo lo que creó buildCharacter (los objetos de los sockets deben quitarse antes si se quieren conservar).
+export function disposeCharacter(ch) {
+  if (!ch) return;
+  disposeTree(ch.root);
+  for (const m of Object.values(ch.mats)) { m.map?.dispose(); m.dispose(); }
 }
