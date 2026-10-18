@@ -54,7 +54,10 @@ No se puede publicar el código fuente tal cual: `import 'three'` necesita compi
 Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public/personaje.json` (puedes reemplazarlo por tu export o usar el botón "Cargar personaje").
 - Joystick: mueve al personaje (animación de caminar proporcional a la inclinación).
 - Saltar, Atacar y Agacharse (mantener): botones. Cerca de una caja aparece **Agarrar**; con la caja en brazos aparecen **Soltar** (abre las manos y la caja cae 1 m delante, sin agacharse) y **Lanzar** (3 m hacia donde mira).
-- Las cajas son **sólidas**: bloquean el paso (hay que saltar para subirse) y se **apilan**; una caja que cae o se suelta sobre otra se alinea con ella. Si retiras la caja de abajo, las de arriba caen. No se puede agarrar la caja sobre la que estás parado.
+- Las cajas (y cualquier objeto móvil) son **sólidos**: bloquean el paso del personaje (hay que saltar para subirse), son sólidas **entre sí**, se **apilan** (una caja soltada o lanzada sobre otra se alinea con ella) y chocan con árboles y muñeco.
+- **Choques:** si una caja lanzada golpea a otra (o la golpea una que se desliza), ambas se desplazan; el impulso se reparte según la masa (crece con el tamaño al cubo; rebote 0,5) y las cajas golpeadas se deslizan hasta detenerse por rozamiento. El tamaño de cada caja es el campo `r` (medio lado) en `crates` de `src/game/game.js`, así que la física ya admite objetos de otros tamaños.
+- Si retiras la caja de abajo (o la empujan fuera del borde), las de arriba caen. No se puede agarrar la caja sobre la que estás parado.
+- **Soltar** y **Lanzar** también funcionan en pleno salto (agarrar solo desde el suelo).
 - Teclado: WASD/flechas, Espacio (saltar), J (atacar), C o Shift (agacharse), E (agarrar/soltar), Q (lanzar).
 - Las animaciones son procedurales sobre las mismas articulaciones y límites del editor; la pose del JSON es la pose base.
 - **El ataque depende del arma que lleve el personaje en la mano** (campo `atk` de cada objeto de la biblioteca; se prefiere la mano derecha, y si el arma está en la izquierda la animación se espeja). Sin arma, golpea con el puño. El nombre del arma aparece en la barra superior.
