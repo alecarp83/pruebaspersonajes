@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { SEGMENT_DEFAULTS, NEUTRAL, buildCharacter, setPose, disposeCharacter, sideSeg } from '../character/character.js';
+import { SEGMENT_DEFAULTS, resolvePose, buildCharacter, setPose, disposeCharacter, sideSeg } from '../character/character.js';
 import { LIBRARY, createObject } from '../objects/library.js';
 
 const $ = s => document.querySelector(s), D = THREE.MathUtils, clone = o => JSON.parse(JSON.stringify(o));
@@ -152,7 +152,7 @@ function loadChar(j) {
   if (ch) { scene.remove(ch.root); disposeCharacter(ch); }
   const seg = { ...clone(SEGMENT_DEFAULTS), ...(j.character?.segments || {}) };
   const colors = { piel: '#d9b08c', base: '#4a6fa5', ...(j.character?.colors || {}) };
-  limits = j.character?.joints || {}; base = { ...clone(NEUTRAL), ...clone(j.pose?.rotations || {}) };
+  limits = j.character?.joints || {}; base = resolvePose(j);
   const segR = j.character?.segmentsR || {};  // asimetría: ajustes del lado derecho
   ch = buildCharacter(seg, colors, j.character?.parts || {}, j.character?.gear || {}, segR);
   ch.root.traverse(n => { if (n.userData.marker) n.visible = false; });

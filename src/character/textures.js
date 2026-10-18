@@ -14,19 +14,26 @@ const DRAW = {
   camuflaje(g, a, b, r) { fill(g, a); for (let i = 0; i < 40; i++) { g.fillStyle = i % 2 ? b : '#000'; g.globalAlpha = i % 2 ? .9 : .25; g.beginPath(); g.ellipse(r() * 256, r() * 256, 10 + r() * 30, 6 + r() * 20, r() * 3, 0, 7); g.fill(); } },
 };
 export const TEXTURE_NAMES = ['liso', ...Object.keys(DRAW)];
-const cache = new Map();
+// Caché LRU: arrastrar un selector de color genera una textura por cada valor intermedio; sin límite se acumularían.
+const cache = new Map(), CACHE_MAX = 32;
+function cachedTexture(key, draw) {
+  let t = cache.get(key);
+  if (t) cache.delete(key);                       // se reinserta al final: es la más reciente
+  else {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'); g.globalAlpha = 1; draw(g);
+    t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  }
+  cache.set(key, t);
+  while (cache.size > CACHE_MAX) { const [k, old] = cache.entries().next().value; cache.delete(k); old.dispose(); }   // los clones en uso conservan la imagen
+  return t;
+}
 
 export function makeMaterial({ tex = 'liso', color = '#888888', color2 = '#555555', scale = 4, roughness = .8, metalness = 0, opacity = 1 } = {}) {
   const textured = tex !== 'liso' && DRAW[tex];
   const m = new THREE.MeshStandardMaterial({ color: textured ? '#ffffff' : color, roughness, metalness });
   if (textured) {
-    const key = tex + color + color2;
-    if (!cache.has(key)) {
-      const c = document.createElement('canvas'); c.width = c.height = 256;
-      const g = c.getContext('2d'); g.globalAlpha = 1; DRAW[tex](g, color, color2, rng(12345));
-      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; cache.set(key, t);
-    }
-    m.map = cache.get(key).clone(); m.map.needsUpdate = true; m.map.repeat.set(scale, scale);
+    m.map = cachedTexture(tex + color + color2, g => DRAW[tex](g, color, color2, rng(12345))).clone(); m.map.needsUpdate = true; m.map.repeat.set(scale, scale);
   }
   if (opacity < 1) { m.transparent = true; m.opacity = opacity; m.depthWrite = false; }
   return m;

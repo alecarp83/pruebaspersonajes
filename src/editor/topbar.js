@@ -1,7 +1,8 @@
 // Barra superior: vistas, modo del gizmo, opciones, deshacer/rehacer, exportar/importar, captura y atajos de teclado.
-import { download, validate } from '../io/io.js';
+import { download, downloadBlob, validate } from '../io/io.js';
+import { exportGLB } from '../io/gltf.js';
 import { scene, camera, tc, grid, renderer, setView, invalidate } from './scene.js';
-import { ctx, serialize, load, resetAll, select, selectPart, setMarkers, heightOf } from './core.js';
+import { ctx, serialize, load, resetAll, select, selectPart, setMarkers, hlPart, heightOf } from './core.js';
 import { undo, redo } from './history.js';
 import { $, D } from './util.js';
 
@@ -12,6 +13,15 @@ $('#snap').onchange = applySnap; applySnap();
 $('#markers').onchange = e => setMarkers(e.target.checked);
 $('#undo').onclick = undo; $('#redo').onclick = redo;
 $('#export').onclick = () => download('personaje.json', serialize());
+
+$('#glb').onclick = async () => {   // se exporta con la pose actual; sin sockets visibles ni resaltado de la parte seleccionada
+  const btn = $('#glb'), part = ctx.selPart, markers = ctx.markers; btn.disabled = true;
+  try {
+    ctx.selPart = null; hlPart(); setMarkers(false);
+    downloadBlob('personaje.glb', new Blob([await exportGLB(ctx.ch.root)], { type: 'model/gltf-binary' }));
+  } catch (err) { alert('No se pudo exportar el GLB: ' + (err.message || err)); }
+  finally { ctx.selPart = part; hlPart(); setMarkers(markers); btn.disabled = false; }
+};
 
 $('#shot').onclick = () => {  // PNG con fondo transparente (se conserva la sombra)
   const bg = scene.background, helper = tc.getHelper(); grid.visible = helper.visible = false; scene.background = null;
@@ -32,7 +42,8 @@ $('#file').onchange = async e => {
 $('#reset').onclick = () => { if (confirm('¿Reiniciar personaje y objetos?')) resetAll(); };
 
 addEventListener('keydown', e => {
-  if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.key !== 'Escape') return;
+  const t = e.target, typing = t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && !/^(range|checkbox|radio|color|button)$/.test(t.type));
+  if (typing && e.key !== 'Escape') return;   // sliders, casillas y selectores de color no escriben texto: los atajos siguen activos
   const k = e.key.toLowerCase(), modes = { w: 'translate', e: 'rotate', r: 'scale' };
   if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); }

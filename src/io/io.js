@@ -1,11 +1,11 @@
 import { LIBRARY } from '../objects/library.js';
 export const SCHEMA_VERSION = 2;
 
-export function download(name, obj) {
+export function downloadBlob(name, blob) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
-  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+export const download = (name, obj) => downloadBlob(name, new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
 
 // Lanza error si el JSON no es utilizable; devuelve avisos para elementos que se omitirán.
 export function validate(j, sockets) {

@@ -18,6 +18,23 @@ Abre la URL que muestra Vite (normalmente http://localhost:5173).
 - El render es bajo demanda (solo dibuja cuando algo cambia) y se liberan geometrías, materiales y texturas al reconstruir.
 - Exportar/importar JSON (completo, o "solo objetos" sobre otro personaje; con "posición normalizada" se escala por el largo del segmento).
 
+## Exportar a GLB (glTF binario)
+El botón **Exportar GLB** descarga `personaje.glb` con la pose actual, en metros, Y arriba y +Z hacia delante (la convención de glTF). Sirve para Blender, Godot, Unity, Three.js, Babylon, etc.
+- La jerarquía se conserva: cada articulación es un nodo (`cintura`, `torso`, `hombro_L`, `codo_L`, `rodilla_R`…), las mallas se llaman `mesh_<parte>` y los sockets son nodos vacíos `socket_<nombre>`. Los objetos colgan de su socket (`obj_001_espada`), así que siguen a la mano o a la espalda cuando se anima.
+- No es una malla con piel (skin): cada segmento es una malla rígida hija de su articulación. Para animar, se rotan los nodos de las articulaciones.
+- No se exportan los sockets visibles, el resaltado de la parte seleccionada ni los objetos con "visible" desmarcado.
+- Las texturas son PNG de 256×256 incrustados, con el repetido (`Escala`) como `KHR_texture_transform`. Si el motor de destino ignora esa extensión, la textura se verá una sola vez por malla.
+
+## Pose simétrica y copia L ↔ R
+En el panel **Pose**: con **Pose simétrica** activada, mover un eje de una articulación L (o R) mueve el mismo eje de la opuesta reflejado (X igual; Y y Z con signo cambiado), respetando los límites del lado destino y sin tocar sus otros ejes. También funciona al arrastrar las manos con IK y al reiniciar una articulación. **Copiar L → R** y **Copiar R → L** reflejan toda la pose de un lado sobre el otro. Cintura, cuello y cabeza no tienen par.
+
+## Cambios en v1.2
+- Los objetos ocultos ya no se pueden seleccionar con el clic.
+- La caché de texturas es LRU (máx. 32): arrastrar colores ya no acumula memoria.
+- Deshacer/rehacer también actualizan el estado guardado en localStorage.
+- Los atajos (Ctrl+Z, Supr, W/E/R) funcionan con el foco en sliders y casillas; solo se bloquean al escribir texto.
+- Editor y juego usan la misma pose base (`resolvePose`): si el JSON trae `pose.rotations` se respeta tal cual.
+
 ## Convenciones
 Y arriba, Z hacia delante, metros. Lado L = +X, R = -X. Posición/rotación (grados, Euler XYZ) de cada objeto son **locales a su socket**.
 

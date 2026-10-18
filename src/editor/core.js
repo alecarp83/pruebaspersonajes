@@ -4,7 +4,7 @@
 //   'props'     -> cambió la transformación del objeto seleccionado
 //   'selection' -> cambió la selección (objeto o parte del cuerpo)
 //   'commit'    -> guardar una instantánea en el historial
-import { SEGMENT_DEFAULTS, NEUTRAL, buildCharacter, setPose, characterHeight, disposeCharacter } from '../character/character.js';
+import { SEGMENT_DEFAULTS, NEUTRAL, resolvePose, buildCharacter, setPose, characterHeight, disposeCharacter } from '../character/character.js';
 import { LIBRARY, createObject, objDefaults, disposeObject } from '../objects/library.js';
 import { validate, SCHEMA_VERSION } from '../io/io.js';
 import { scene, tc, setView, invalidate } from './scene.js';
@@ -50,7 +50,7 @@ export function addObject(type, socket, opt = {}) {
   const mat = { ...objDefaults(type), ...(opt.mat || {}) }, node = createObject(type, mat);
   const o = { id: opt.id || 'obj_' + String(idCounter++).padStart(3, '0'), type, socket, node, mat, mirrorOf: opt.mirrorOf || null };
   const n = parseInt((o.id.match(/\d+$/) || [0])[0]); if (n >= idCounter) idCounter = n + 1;
-  node.visible = opt.visible !== false;
+  node.name = o.id + '_' + type; node.visible = opt.visible !== false;
   ctx.ch.sockets[socket].add(node); state.objects.push(o);
   return o;
 }
@@ -85,7 +85,7 @@ export function load(j, { onlyObjects = false, useNorm = false, record = true, k
     state.limits = j.character.joints || {};
     state.parts = j.character.parts ? clone(j.character.parts) : {};
     state.gear = j.character.gear ? clone(j.character.gear) : {};
-    state.pose = j.pose?.rotations ? clone(j.pose.rotations) : clone(NEUTRAL);
+    state.pose = resolvePose(j);
   }
   state.objects.forEach(o => { o.node.removeFromParent(); disposeObject(o.node); }); state.objects = [];
   rebuild();

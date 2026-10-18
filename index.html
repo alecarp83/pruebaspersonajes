@@ -15,7 +15,7 @@
   <span class="sep"></span>
   <button id="undo">Deshacer</button><button id="redo">Rehacer</button>
   <span class="sep"></span>
-  <button id="export">Exportar JSON</button><button id="shot">Captura PNG</button><button id="import">Importar JSON</button>
+  <button id="export">Exportar JSON</button><button id="glb">Exportar GLB</button><button id="shot">Captura PNG</button><button id="import">Importar JSON</button>
   <label><input type="checkbox" id="onlyObj"> solo objetos</label>
   <label><input type="checkbox" id="useNorm"> posición normalizada</label>
   <button id="reset">Reiniciar</button><a href="game.html" style="color:#7fd0b0">Jugar →</a>
@@ -40,6 +40,8 @@
     <h3>Pose</h3>
     <div class="row"><select id="jointSel"></select></div>
     <div id="poseRows"></div>
+    <div class="row"><label class="chk"><input type="checkbox" id="symPose"> Pose simétrica (mover L mueve R)</label></div>
+    <div class="row"><button id="copyLR">Copiar L → R</button><button id="copyRL">Copiar R → L</button></div>
     <div class="row"><button id="poseA">Pose A</button><button id="poseT">Pose T</button><button id="jointReset">Reiniciar articulación</button></div>
     <h3>Objeto seleccionado</h3>
     <div id="props"><p class="hint">Haz clic en un objeto del personaje.</p></div>

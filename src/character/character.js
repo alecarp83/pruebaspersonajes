@@ -27,6 +27,8 @@ export const POSE_JOINTS = ['cintura', 'cuello', 'cabeza',
   ...['L', 'R'].flatMap(s => ['hombro', 'codo', 'muneca', 'cadera', 'rodilla', 'tobillo'].map(j => `${j}_${s}`))];
 export const NEUTRAL = { hombro_L: [0, 0, 30], hombro_R: [0, 0, -30] };
 export const POSE_T = { hombro_L: [0, 0, 90], hombro_R: [0, 0, -90] };
+// Pose base de un JSON (la usan el editor y el juego): si trae `pose.rotations` se respeta tal cual; si no, pose neutra (A).
+export const resolvePose = j => JSON.parse(JSON.stringify(j?.pose?.rotations ? j.pose.rotations : NEUTRAL));
 
 export function limitFor(name, over = {}) {
   if (over[name]) return [[...over[name].min], [...over[name].max]];
@@ -58,15 +60,15 @@ export function characterHeight(s, segR = {}) {
 
 // Cada articulación es un pivote; la malla del segmento cuelga desplazada del pivote proximal.
 export function buildCharacter(seg, colors, parts = {}, gear = {}, segR = {}) {
-  const root = new THREE.Group(), joints = {}, sockets = {}, refLen = {};
+  const root = new THREE.Group(); root.name = 'personaje'; const joints = {}, sockets = {}, refLen = {};
   const mats = {}; for (const n of [...PART_NAMES, ...GEAR_NAMES]) mats[n] = makeMaterial(resolvePart(n, colors, parts));
   const pivot = (n, p, x = 0, y = 0, z = 0) => { const o = new THREE.Object3D(); o.name = n; o.position.set(x, y, z); p.add(o); joints[n] = o; return o; };
-  const mesh = (p, g, part, y = 0, z = 0) => { const o = new THREE.Mesh(g, mats[part]); o.position.set(0, y, z); o.userData.body = true; o.userData.part = part; o.castShadow = o.receiveShadow = true; p.add(o); return o; };
+  const mesh = (p, g, part, y = 0, z = 0) => { const o = new THREE.Mesh(g, mats[part]); o.name = 'mesh_' + part; o.position.set(0, y, z); o.userData.body = true; o.userData.part = part; o.castShadow = o.receiveShadow = true; p.add(o); return o; };
   const jsph = (p, r, part) => mesh(p, new THREE.SphereGeometry(r, 16, 12), part); // esfera de articulación
   const cap = (l, w) => new THREE.CapsuleGeometry(w / 2, Math.max(l - w, .001), 4, 12);
   const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
   const sock = (n, p, len, x = 0, y = 0, z = 0, rx = 0, ry = 0) => {
-    const o = new THREE.Object3D(); o.name = n; o.position.set(x, y, z); o.rotation.set(rx, ry, 0); p.add(o);
+    const o = new THREE.Object3D(); o.name = 'socket_' + n; o.position.set(x, y, z); o.rotation.set(rx, ry, 0); p.add(o);
     sockets[n] = o; refLen[n] = len;
     const d = new THREE.Mesh(new THREE.SphereGeometry(.016), new THREE.MeshBasicMaterial({ color: 0xffb020, depthTest: false }));
     d.renderOrder = 10; d.userData.marker = true; o.add(d);

@@ -3,6 +3,7 @@ import { SEGMENT_DEFAULTS, POSE_JOINTS, NEUTRAL, POSE_T, PAIRED, limitFor, setPo
 import { $, fill, clone } from '../util.js';
 import { state, ctx, bus, rebuild } from '../core.js';
 import { commit } from '../history.js';
+import { symPoseOn, mirrorJoint, otherSide, copySide } from '../symmetry.js';
 
 fill($('#segSel'), Object.keys(SEGMENT_DEFAULTS)); fill($('#jointSel'), POSE_JOINTS);
 $('#poseRows').innerHTML = ['X', 'Y', 'Z'].map((a, i) =>
@@ -48,10 +49,18 @@ const applyPose = () => { setPose(ctx.ch.joints, state.pose, state.limits); bus.
 document.querySelectorAll('#poseRows input').forEach(el => {
   el.oninput = () => {
     const j = $('#jointSel').value, v = state.pose[j] ? [...state.pose[j]] : [0, 0, 0];
-    v[+el.dataset.p] = +el.value; state.pose[j] = v; applyPose();
+    v[+el.dataset.p] = +el.value; state.pose[j] = v;
+    if (symPoseOn()) mirrorJoint(j, [+el.dataset.p]);   // solo el eje que se mueve: no pisa el resto de la pose del otro lado
+    applyPose();
   };
   el.onchange = commit;
 });
 $('#poseA').onclick = () => { state.pose = clone(NEUTRAL); applyPose(); commit(); };
 $('#poseT').onclick = () => { state.pose = clone(POSE_T); applyPose(); commit(); };
-$('#jointReset').onclick = () => { delete state.pose[$('#jointSel').value]; applyPose(); commit(); };
+$('#jointReset').onclick = () => {
+  const j = $('#jointSel').value, o = otherSide(j);
+  delete state.pose[j]; if (o && symPoseOn()) delete state.pose[o];
+  applyPose(); commit();
+};
+$('#copyLR').onclick = () => { copySide('L'); applyPose(); commit(); };
+$('#copyRL').onclick = () => { copySide('R'); applyPose(); commit(); };
