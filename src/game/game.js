@@ -49,6 +49,30 @@ const crates = [[2.5, 2], [-2, 4], [5, -6], [-6, -1], [1, -2]].map(([x, z]) => {
   return { mesh, state: 'ground', vx: 0, vy: 0, vz: 0, from: new THREE.Vector3(), to: new THREE.Vector3() };
 });
 let held = null, act = null;
+// Altura de la superficie en (x,z): suelo, plataformas y cajas apoyadas (las cajas son sólidas y se apilan).
+//   ex = caja a ignorar · maxTop = solo cajas cuya cara superior no pase de esta altura · m = margen horizontal
+function surfaceAt(x, z, { ex = null, maxTop = Infinity, m = .15 } = {}) {
+  let h = groundAt(x, z);
+  for (const c of crates) {
+    if (c === ex || c.state !== 'ground') continue;
+    const p = c.mesh.position, top = p.y + .25;
+    if (top > h && top <= maxTop && Math.abs(x - p.x) < .25 + m && Math.abs(z - p.z) < .25 + m) h = top;
+  }
+  return h;
+}
+// La caja toca una superficie de altura sy: se apoya y, si cae sobre otra caja, se alinea con ella para apilar limpio.
+function landCrate(c, sy) {
+  const m = c.mesh.position; m.y = sy + .25; c.state = 'ground'; c.vx = c.vy = c.vz = 0;
+  const sup = crates.find(o => o !== c && o.state === 'ground' && Math.abs(o.mesh.position.y + .25 - sy) < .01 && Math.abs(m.x - o.mesh.position.x) < .3 && Math.abs(m.z - o.mesh.position.z) < .3);
+  if (sup) { m.x = sup.mesh.position.x; m.z = sup.mesh.position.z; c.mesh.rotation.set(0, sup.mesh.rotation.y, 0); }
+  else c.mesh.rotation.set(0, rotY, 0);
+}
+// Suelta la caja desde las manos: cae hacia 1 m por delante (sobre el suelo o sobre otra caja), sin agacharse.
+function releaseCrate() {
+  const c = held, T = .3, m = c.mesh.position, tx = D.clamp(pos.x + Math.sin(rotY), -BOUND, BOUND), tz = D.clamp(pos.z + Math.cos(rotY), -BOUND, BOUND);
+  const ty = surfaceAt(tx, tz, { ex: c, m: .24 }) + .25;
+  held = null; c.state = 'fly'; c.vx = (tx - m.x) / T; c.vz = (tz - m.z) / T; c.vy = (ty - m.y + .5 * G * T * T) / T;
+}
 const setShown = (sel, v) => { const e = $(sel); if (e.hidden === v) e.hidden = !v; };
 
 scene.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
@@ -169,9 +193,9 @@ const P2 = (z, h, c, ci, ca, ro) => ({ hombro_L: [h, 0, z], hombro_R: [h, 0, -z]
   cadera_L: [ca, 0, 0], cadera_R: [ca, 0, 0], rodilla_L: [ro, 0, 0], rodilla_R: [ro, 0, 0] });
 let ANIMS = {}, CARRY = {}, legs = [.43, .42];
 function buildAnims(z) {  // z = apertura del hombro para que las manos queden a los lados de la caja
-  const REACH = P2(z, -10, 20, 50, 100, 140), WIND = P2(z, 40, 110, -10, 20, 35), REL = P2(z, 95, 8, 25, 0, 0);
+  const REACH = P2(z, -10, 20, 50, 100, 140), WIND = P2(z, 40, 110, -10, 20, 35), REL = P2(z, 95, 8, 25, 0, 0), OPEN = P2(z + 14, 6, 22, 0, 0, 0);  // OPEN: abre los brazos sin flexionar piernas
   CARRY = P2(z, 20, 70, 0, 0, 0);
-  ANIMS = { grab: { len: .55, kf: [[0, REACH], [.22, REACH], [.55, CARRY]] }, drop: { len: .45, kf: [[0, CARRY], [.2, REACH], [.45, REACH]] },
+  ANIMS = { grab: { len: .55, kf: [[0, REACH], [.22, REACH], [.55, CARRY]] }, drop: { len: .4, kf: [[0, CARRY], [.14, OPEN], [.4, OPEN]] },
     throw: { len: .5, kf: [[0, WIND], [.18, WIND], [.3, REL], [.5, REL]] } };
 }
 // descenso de la cadera según flexión de cadera y rodilla (para que los pies sigan en el suelo)
@@ -179,6 +203,7 @@ const legDrop = (h, k) => legs[0] + legs[1] - (legs[0] * Math.cos(D.degToRad(h))
 function nearCrate() {
   let b = null, bd = 1.3;
   for (const c of crates) { if (c.state !== 'ground') continue; const p = c.mesh.position, d = Math.hypot(p.x - pos.x, p.z - pos.z);
+    if (d < .55 && pos.y >= p.y + .2) continue;  // no se puede agarrar la caja sobre la que estás parado
     if (d < bd && Math.abs(p.y - .25 - pos.y) < .8) { b = c; bd = d; } }
   return b;
 }
@@ -209,8 +234,7 @@ function step(dt, t) {
     if (!held && wantGrab) { const c = nearCrate();
       if (c) { held = c; c.state = 'held'; c.from.copy(c.mesh.position); rotY = Math.atan2(c.mesh.position.x - pos.x, c.mesh.position.z - pos.z); const ox = c.mesh.position.x - pos.x, oz = c.mesh.position.z - pos.z, d = Math.hypot(ox, oz) || 1;
         act = { name: 'grab', t: 0, gx: c.mesh.position.x - ox / d * .95, gz: c.mesh.position.z - oz / d * .95 }; } }
-    else if (held && wantDrop) { const tx = D.clamp(pos.x + Math.sin(rotY), -BOUND, BOUND), tz = D.clamp(pos.z + Math.cos(rotY), -BOUND, BOUND);
-      held.to.set(tx, groundAt(tx, tz) + .25, tz); act = { name: 'drop', t: 0 }; }
+    else if (held && wantDrop) act = { name: 'drop', t: 0 };
     else if (held && wantThrow) act = { name: 'throw', t: 0 };
   }
   wantGrab = wantDrop = wantThrow = false;
@@ -219,9 +243,10 @@ function step(dt, t) {
     if (act.name === 'grab' && act.t < .25) { pos.x += (act.gx - pos.x) * Math.min(1, dt * 10); pos.z += (act.gz - pos.z) * Math.min(1, dt * 10); }
     if (act.name === 'throw' && held && act.t > .26) {  // soltar en el punto de la animación: aterriza 3 cuadros delante
       const c = held, T = .6, tx = pos.x + Math.sin(rotY) * 3, tz = pos.z + Math.cos(rotY) * 3; held = null; c.state = 'fly';
-      c.vx = (tx - c.mesh.position.x) / T; c.vz = (tz - c.mesh.position.z) / T; c.vy = (groundAt(tx, tz) + .25 - c.mesh.position.y + .5 * G * T * T) / T;
+      c.vx = (tx - c.mesh.position.x) / T; c.vz = (tz - c.mesh.position.z) / T; c.vy = (surfaceAt(tx, tz, { ex: c, m: .24 }) + .25 - c.mesh.position.y + .5 * G * T * T) / T;
     }
-    if (act.t > ANIMS[act.name].len) { if (act.name === 'drop' && held) { held.mesh.position.copy(held.to); held.mesh.rotation.set(0, rotY, 0); held.state = 'ground'; held = null; } act = null; }
+    if (act.name === 'drop' && held && act.t > .14) releaseCrate();   // las manos se abren y la caja cae
+    if (act.t > ANIMS[act.name].len) { if (act.name === 'drop' && held) releaseCrate(); act = null; }
   }
   if (atkT >= 0) {
     const A = atkDef; atkT += dt;
@@ -234,11 +259,15 @@ function step(dt, t) {
   }
   // movimiento horizontal con colisiones simples
   const nx = pos.x + dx * dt, nz = pos.z + dz * dt;
-  if (groundAt(nx, nz) <= pos.y + .35) { pos.x = nx; pos.z = nz; }
+  const walkable = (x, z) => surfaceAt(x, z) <= pos.y + .35;   // cajas y plataformas altas bloquean el paso (hay que saltar)
+  if (walkable(nx, nz)) { pos.x = nx; pos.z = nz; }
+  else if (walkable(nx, pos.z)) pos.x = nx;
+  else if (walkable(pos.x, nz)) pos.z = nz;
   pos.x = D.clamp(pos.x, -BOUND, BOUND); pos.z = D.clamp(pos.z, -BOUND, BOUND);
   for (const s of solids) { const ox = pos.x - s.x, oz = pos.z - s.z, d = Math.hypot(ox, oz), m = s.r + .3; if (d < m && d > 0) { pos.x = s.x + ox / d * m; pos.z = s.z + oz / d * m; } }
   // vertical
-  const g = groundAt(pos.x, pos.z), was = air;
+  const g = surfaceAt(pos.x, pos.z), was = air;
+  if (pos.y < g - 1e-4 && vy <= 0) pos.y = g;   // p. ej. una caja cayó bajo los pies
   if (pos.y > g + 1e-4 || vy > 0) { vy -= G * dt; pos.y += vy * dt; if (pos.y <= g && vy <= 0) { pos.y = g; vy = 0; } }
   air = pos.y > g + 1e-3; if (was && !air) landT = .18; landT = Math.max(0, landT - dt);
   moveAmt += (Math.min(1, Math.hypot(dx, dz) / 2.4) * (air ? 0 : 1) - moveAmt) * Math.min(1, dt * 12);
@@ -272,15 +301,22 @@ function step(dt, t) {
     ch.root.updateMatrixWorld(true);
     const V = ch.sockets.mano_L.getWorldPosition(new THREE.Vector3()).add(ch.sockets.mano_R.getWorldPosition(new THREE.Vector3())).multiplyScalar(.5), n = act?.name;
     if (n === 'grab') held.mesh.position.lerpVectors(held.from, V, D.smoothstep(act.t, .18, .5));
-    else if (n === 'drop') held.mesh.position.lerpVectors(V, held.to, D.smoothstep(act.t, .2, .42));
     else held.mesh.position.copy(V);
     held.mesh.rotation.set(0, rotY, 0);
   }
+  for (const c of crates) if (c.state === 'ground') {   // si se retira la caja de abajo, la de arriba cae
+    const p = c.mesh.position, base = p.y - .25;
+    if (base > surfaceAt(p.x, p.z, { ex: c, maxTop: base + .05, m: .24 }) + .02) { c.state = 'fly'; c.vx = c.vy = c.vz = 0; }
+  }
   for (const c of crates) if (c.state === 'fly') {
-    const m = c.mesh.position; c.vy -= G * dt; m.x += c.vx * dt; m.z += c.vz * dt; m.y += c.vy * dt;
+    const m = c.mesh.position, baseBefore = m.y - .25; c.vy -= G * dt;
+    const nx = m.x + c.vx * dt, nz = m.z + c.vz * dt;
+    if (surfaceAt(nx, nz, { ex: c, m: .24 }) > baseBefore + .15) { c.vx = c.vz = 0; } else { m.x = nx; m.z = nz; }   // choque lateral con otra caja: cae recta
+    m.y += c.vy * dt;
     m.x = D.clamp(m.x, -BOUND, BOUND); m.z = D.clamp(m.z, -BOUND, BOUND); c.mesh.rotation.x += dt * 6;
     if (Math.hypot(m.x - dummy.position.x, m.z - dummy.position.z) < .55 && m.y < 1.9) { hitT = .5; c.vx = c.vz = 0; }
-    const gy = groundAt(m.x, m.z) + .25; if (m.y <= gy && c.vy < 0) { m.y = gy; c.state = 'ground'; c.mesh.rotation.set(0, rotY, 0); }
+    const sy = surfaceAt(m.x, m.z, { ex: c, maxTop: baseBefore + .05, m: .24 });
+    if (m.y - .25 <= sy && c.vy < 0) landCrate(c, sy);
   }
   updateShots(dt);
   const near = !held && !act && !air && atkT < 0 ? nearCrate() : null;

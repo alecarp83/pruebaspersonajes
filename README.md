@@ -53,7 +53,8 @@ No se puede publicar el código fuente tal cual: `import 'three'` necesita compi
 ## Modo juego (`game.html`)
 Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public/personaje.json` (puedes reemplazarlo por tu export o usar el botón "Cargar personaje").
 - Joystick: mueve al personaje (animación de caminar proporcional a la inclinación).
-- Saltar, Atacar y Agacharse (mantener): botones. Cerca de una caja aparece **Agarrar**; con la caja en brazos aparecen **Soltar** (1 m delante) y **Lanzar** (3 m hacia donde mira).
+- Saltar, Atacar y Agacharse (mantener): botones. Cerca de una caja aparece **Agarrar**; con la caja en brazos aparecen **Soltar** (abre las manos y la caja cae 1 m delante, sin agacharse) y **Lanzar** (3 m hacia donde mira).
+- Las cajas son **sólidas**: bloquean el paso (hay que saltar para subirse) y se **apilan**; una caja que cae o se suelta sobre otra se alinea con ella. Si retiras la caja de abajo, las de arriba caen. No se puede agarrar la caja sobre la que estás parado.
 - Teclado: WASD/flechas, Espacio (saltar), J (atacar), C o Shift (agacharse), E (agarrar/soltar), Q (lanzar).
 - Las animaciones son procedurales sobre las mismas articulaciones y límites del editor; la pose del JSON es la pose base.
 - **El ataque depende del arma que lleve el personaje en la mano** (campo `atk` de cada objeto de la biblioteca; se prefiere la mano derecha, y si el arma está en la izquierda la animación se espeja). Sin arma, golpea con el puño. El nombre del arma aparece en la barra superior.
