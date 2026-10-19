@@ -20,6 +20,7 @@ const shown = n => { for (; n; n = n.parent) if (!n.visible) return false; retur
 let down = null;
 renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener('pointerup', e => {
+  if (ctx.mode === 'map') return;
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4 || tc.axis) return;
   setRay(e);
   if (ikOn()) { const hh = ray.intersectObjects(Object.values(handles))[0]; if (hh) { selectHandle(hh.object); return; } }
@@ -29,8 +30,9 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (o) select(o);
   else { select(null); const bh = ray.intersectObject(ctx.ch.root, true).find(i => i.object.userData.body && shown(i.object)); selectPart(bh ? bh.object.userData.part : null); }
 });
-tc.addEventListener('dragging-changed', e => { orbit.enabled = !e.value; if (!e.value) { bus.emit('props'); commit(); } });
+tc.addEventListener('dragging-changed', e => { orbit.enabled = !e.value; if (ctx.mode === 'map') return; if (!e.value) { bus.emit('props'); commit(); } });
 tc.addEventListener('objectChange', () => {
+  if (ctx.mode === 'map') return;
   if (ctx.ikActive) {
     const side = ctx.ikActive.userData.side; ikArm(side, ctx.ikActive.position);
     if (symPoseOn()) { mirrorJoint('hombro_' + side); mirrorJoint('codo_' + side); setPose(ctx.ch.joints, state.pose, state.limits); }   // el brazo opuesto copia el movimiento
@@ -50,9 +52,10 @@ function highlight(name) {
   for (const [n, s] of Object.entries(ctx.ch.sockets)) s.children[0].scale.setScalar(n === name ? 2.5 : 1);
   tag.style.display = name ? 'block' : 'none'; tag.textContent = name ? 'Socket: ' + name : '';
 }
-view.addEventListener('dragover', e => { e.preventDefault(); highlight(nearestSocket(e)); });
-view.addEventListener('dragleave', () => highlight(null));
+view.addEventListener('dragover', e => { if (ctx.mode === 'map') return; e.preventDefault(); highlight(nearestSocket(e)); });
+view.addEventListener('dragleave', () => { if (ctx.mode !== 'map') highlight(null); });
 view.addEventListener('drop', e => {
+  if (ctx.mode === 'map') return;
   e.preventDefault(); const type = e.dataTransfer.getData('text/plain'); if (!LIBRARY[type]) return;
   const sock = nearestSocket(e) || LIBRARY[type].socket; highlight(null);
   select(addObject(type, sock)); commit();

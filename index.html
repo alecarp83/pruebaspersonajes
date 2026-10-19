@@ -10,21 +10,24 @@
   <span class="sep"></span>
   <select id="mode"><option value="translate">Mover (W)</option><option value="rotate">Rotar (E)</option><option value="scale">Escalar (R)</option></select>
   <label><input type="checkbox" id="snap" checked> Snap</label>
-  <label><input type="checkbox" id="markers" checked> Sockets</label>
-  <label><input type="checkbox" id="ik"> IK manos</label>
+  <label class="charOnly"><input type="checkbox" id="markers" checked> Sockets</label>
+  <label class="charOnly"><input type="checkbox" id="ik"> IK manos</label>
   <span class="sep"></span>
   <button id="undo">Deshacer</button><button id="redo">Rehacer</button>
   <span class="sep"></span>
-  <button id="export">Exportar JSON</button><button id="glb">Exportar GLB</button><button id="shot">Captura PNG</button><button id="import">Importar JSON</button>
+  <span class="charOnly" style="display:contents"><button id="export">Exportar JSON</button><button id="glb">Exportar GLB</button><button id="shot">Captura PNG</button><button id="import">Importar JSON</button>
   <label><input type="checkbox" id="onlyObj"> solo objetos</label>
   <label><input type="checkbox" id="useNorm"> posición normalizada</label>
-  <button id="reset">Reiniciar</button><a href="game.html" style="color:#7fd0b0">Jugar →</a>
+  <button id="reset">Reiniciar</button></span>
+  <span class="mapOnly" style="display:contents"><button id="mapExport" title="Descarga maps/&lt;id&gt;/&lt;id&gt;.html, .css y .js en un .zip">Exportar mapa (.zip)</button><a id="mapPlay" href="game.html" target="_blank" rel="noopener" style="color:#7fd0b0">Probar en Jugar →</a></span>
+  <span class="sep"></span>
+  <button id="mapMode" title="Crear mapas de prueba para el modo Jugar">Crear mapa</button><a href="game.html" style="color:#7fd0b0">Jugar →</a>
   <input type="file" id="file" accept=".json" hidden>
 </header>
 <main>
-  <aside><h3>Objetos</h3><p class="hint">Arrastra al personaje, o toca para añadir al socket sugerido.</p><div id="libList"></div></aside>
+  <aside><div class="charOnly"><h3>Objetos</h3><p class="hint">Arrastra al personaje, o toca para añadir al socket sugerido.</p><div id="libList"></div></div><div class="mapOnly" id="mapLib"></div></aside>
   <div id="view"><div id="tag"></div></div>
-  <aside id="side">
+  <aside id="side"><div class="mapOnly" id="mapSide"></div><div class="charOnly">
     <h3>Preset</h3>
     <div class="row"><select id="presetSel"></select><button id="presetBtn">Aplicar</button></div>
     <h3>Cuerpo</h3>
@@ -45,7 +48,7 @@
     <div class="row"><button id="poseA">Pose A</button><button id="poseT">Pose T</button><button id="jointReset">Reiniciar articulación</button></div>
     <h3>Objeto seleccionado</h3>
     <div id="props"><p class="hint">Haz clic en un objeto del personaje.</p></div>
-  </aside>
+  </div></aside>
 </main>
 <script type="module" src="/src/main.js"></script>
 </body></html>

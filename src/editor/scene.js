@@ -40,3 +40,6 @@ export function setView(v, h) {
   const p = { persp: [d * .6, h * .7, d * .8], front: [0, h / 2, d], side: [d, h / 2, 0], top: [0, d, .001] }[v];
   camera.position.set(...p); orbit.target.set(0, h / 2, 0); orbit.update(); invalidate();
 }
+
+// El modo "Crear mapa" necesita retocar la luz principal (sombras de un mapa grande) y ocultar el suelo y la cuadrícula del personaje.
+export { key as sun, floor };

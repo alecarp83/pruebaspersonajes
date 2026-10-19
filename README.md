@@ -35,6 +35,12 @@ En el panel **Pose**: con **Pose simétrica** activada, mover un eje de una arti
 - Los atajos (Ctrl+Z, Supr, W/E/R) funcionan con el foco en sliders y casillas; solo se bloquean al escribir texto.
 - Editor y juego usan la misma pose base (`resolvePose`): si el JSON trae `pose.rotations` se respeta tal cual.
 
+## Cambios en v1.4
+- **Crear mapa**: nuevo modo del editor para construir mapas de prueba y exportarlos como `maps/<id>/<id>.html|css|js` (ver más abajo). El modo Jugar carga mapas propios (selector, `?map=`, `?editorMap=`, archivos) y su escenario por defecto ahora es un mapa más.
+- Nuevos elementos de juego: pelotas, ríos con corriente, montañas caminables, paredes y plataformas giradas, varios muñecos.
+- Rendimiento: lo estático se dibuja con instancias GPU, colisiones con rejilla espacial y sombras que siguen al personaje.
+- Se recuperan en `game.js` los arreglos de apilado de cajas (soltar sobre una pila sin que el personaje suba solo, pilas de hasta 4, desapilar la de arriba) que no estaban en la v10.
+
 ## Convenciones
 Y arriba, Z hacia delante, metros. Lado L = +X, R = -X. Posición/rotación (grados, Euler XYZ) de cada objeto son **locales a su socket**.
 
@@ -48,7 +54,9 @@ Y arriba, Z hacia delante, metros. Lado L = +X, R = -X. Posición/rotación (gra
   - `history.js` deshacer/rehacer y restauración desde localStorage.
   - `ik.js` cinemática inversa de manos · `interaction.js` clic, arrastre y gizmo · `topbar.js` barra superior y atajos.
   - `panels/` `library`, `body` (proporciones, asimetría, pose), `texture`, `props` (objeto seleccionado), `presets` (presets y equipo).
-- `src/game/` modo juego.
+  - `maps/` modo **Crear mapa**: `state.js` (datos, historial, guardado) · `view.js` (escena 3D, gizmo, selección) · `panels.js` (interfaz y exportación) · `mode.js` (activación y atajos).
+- `src/maps/` formato y motor de mapas, compartido por el editor, el juego y la exportación: `types.js` (catálogo de objetos), `mapdata.js` (formato, validación, empaquetado compacto), `world.js` (colisiones), `visual.js` (geometrías, instancias GPU, suelo), `export.js` + `zip.js` (carpeta `maps/<id>/` y `.zip`).
+- `src/game/` modo juego. `engine/engine.js` es el mismo juego con una URL estable (lo cargan los mapas exportados).
 
 Para añadir un panel nuevo: crea `src/editor/panels/mi_panel.js`, escucha `bus.on('sync', ...)` para refrescarse, llama a `commit()` tras cada cambio del usuario e impórtalo en `src/main.js`.
 
@@ -68,11 +76,12 @@ No se puede publicar el código fuente tal cual: `import 'three'` necesita compi
 3. Cada push a `main` compila (`npm run build`) y publica `dist/`.
 
 ## Modo juego (`game.html`)
-Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public/personaje.json` (puedes reemplazarlo por tu export o usar el botón "Cargar personaje").
+Por defecto arranca un mapa pequeño con plataformas, árboles y un muñeco de práctica; el selector de la barra superior permite cargar **mapas propios** (ver "Crear mapa"). Carga `public/personaje.json` (puedes reemplazarlo por tu export o usar el botón "Cargar personaje").
 - Joystick: mueve al personaje (animación de caminar proporcional a la inclinación).
 - Saltar, Atacar y Agacharse (mantener): botones. Cerca de una caja aparece **Agarrar**; con la caja en brazos aparecen **Soltar** (abre las manos y la caja cae 1 m delante, sin agacharse) y **Lanzar** (3 m hacia donde mira).
 - Las cajas (y cualquier objeto móvil) son **sólidos**: bloquean el paso del personaje (hay que saltar para subirse), son sólidas **entre sí**, se **apilan** (una caja soltada o lanzada sobre otra se alinea con ella) y chocan con árboles y muñeco.
 - **Choques:** si una caja lanzada golpea a otra (o la golpea una que se desliza), ambas se desplazan; el impulso se reparte según la masa (crece con el tamaño al cubo; rebote 0,5) y las cajas golpeadas se deslizan hasta detenerse por rozamiento. El tamaño de cada caja es el campo `r` (medio lado) en `crates` de `src/game/game.js`, así que la física ya admite objetos de otros tamaños.
+- **Apilar:** al soltar, si hay una caja pegada delante (o el punto de caída queda casi sobre ella), la caja se coloca encima y alineada, aunque sea una pila alta (describe un pequeño arco). Se pueden apilar hasta **4 cajas** desde el suelo (`REACH_UP` en `src/game/game.js`; saltando se llega más arriba). Si la pila es demasiado alta, el juego avisa y no suelta la caja. **Desapilar:** a igual distancia se agarra la caja de arriba.
 - Si retiras la caja de abajo (o la empujan fuera del borde), las de arriba caen. No se puede agarrar la caja sobre la que estás parado.
 - **Soltar** y **Lanzar** también funcionan en pleno salto (agarrar solo desde el suelo).
 - Teclado: WASD/flechas, Espacio (saltar), J (atacar), C o Shift (agacharse), E (agarrar/soltar), Q (lanzar).
@@ -81,6 +90,42 @@ Mapa pequeño con plataformas, árboles y un muñeco de práctica. Carga `public
   - Tajo (`slash`): espada, antorcha · Estocada (`thrust`): daga, lanza · Golpe cenital (`smash`): hacha, martillo, maza, bastón · Embestida (`bash`): escudo.
   - A distancia: disparo (`shoot`) con pistola y rifle (balas) o arco (flechas); hechizo (`cast`) con la varita (esfera de magia). Los proyectiles vuelan en línea recta y golpean al muñeco.
   - En `src/game/game.js`, `ATTACKS` define duración, instante de impacto, alcance, fuerza y fotogramas clave de cada tipo.
+
+## Crear mapa (mapas de prueba para Jugar)
+Botón **Crear mapa** en la barra superior (otra vez para **Volver al personaje**). Es otro modo del mismo lienzo: se oculta el personaje y cambian los paneles.
+
+**Flujo.** Un mapa nuevo está vacío (solo el suelo y el *punto de inicio*). Arrastra objetos desde la lista de la izquierda al mapa (o tócalos para añadirlos en el centro de la vista), selecciónalos con un clic y muévelos, gíralos y escálalos con el gizmo (**W/E/R**; mover solo en el suelo, girar solo sobre Y). Los cambios se guardan solos en el navegador, con deshacer/rehacer (**Ctrl+Z / Ctrl+Y**). **Probar en Jugar →** abre `game.html` con ese mapa; tras editar, el botón *Reiniciar mapa* de Jugar trae la última versión.
+
+| Objeto | Qué hace en el juego |
+|---|---|
+| Plataforma | Se sube caminando si es baja (≤ 0,35 m de diferencia), si es alta bloquea. Puede girarse (cualquier ángulo). |
+| Pared | Bloquea el paso (plataforma alta y fina). |
+| Árbol / Roca | Obstáculos redondos sólidos (cajas, pelotas y proyectiles rebotan o se detienen). |
+| Montaña | Terreno caminable en forma de cono (se sube y se baja sin saltos); las pelotas ruedan cuesta abajo. |
+| Río | Frena al personaje (×0,55) y arrastra cajas y pelotas hacia +Z local (corriente configurable, 0–4 m/s). |
+| Caja | Dinámica: se agarra, se apila y se lanza (física del juego). |
+| Pelota | Rebota, rueda, la arrastra el río y se patea al caminar contra ella o al atacar (no se agarra). |
+| Muñeco | Blanco de práctica que reacciona a golpes, proyectiles y objetos lanzados. |
+| Punto de inicio | Único; la flecha indica hacia dónde mira el personaje al empezar. |
+
+Atajos: **Suprimir** borra · **Ctrl+D** duplica · **flechas** mueven 0,5 m (Mayús: 2 m) · **Esc** deselecciona · casilla **Snap** (0,5 m / 15° / 0,1). Todos los objetos se apoyan en el suelo (y = 0). Límites: 3000 objetos y 10–200 m de lado.
+
+**Exportar.** *Exportar mapa (.zip)* descarga:
+```
+maps/map1/
+  map1.html   página independiente con la misma interfaz que Jugar, ya apuntando a este mapa
+  map1.css    estilos del juego (minificados) + tema del mapa (colores de cielo y suelo)
+  map1.js     el mapa en formato compacto + arranque del motor
+```
+Descomprime el `.zip` dentro de `public/` del proyecto (queda `public/maps/map1/`). Se abre en `…/maps/map1/map1.html`, o desde **Jugar** (añade `"maps/map1/map1.js"` a `public/maps/index.json`, o usa *Cargar mapa* con el `.js`, o la URL `game.html?map=maps/map1/map1.js`). Hay un ejemplo exportado en `public/maps/demo/`. El editor también puede **Importar** un `map1.js`/`.json` para seguir editándolo.
+
+**Optimización.** El `.js` exportado agrupa los objetos por tipo en filas numéricas con paleta de colores (≈ 40 % del tamaño del formato editable). En el juego todo lo estático (plataformas, paredes, árboles, rocas, montañas, ríos) se dibuja con **instancias GPU**: una llamada de dibujo por tipo de pieza, no por objeto (el panel del editor muestra el recuento). Las colisiones usan una rejilla espacial: consultar el suelo en un mapa de 400 objetos es unas 300 veces más rápido que recorrerlos todos. El sol y sus sombras siguen al personaje, así que el coste no depende del tamaño del mapa.
+
+**Cómo funciona la página exportada.** `map1.js` guarda `MAP` y, si se abre `map1.html`, carga `../../engine/engine.js` (el motor de Jugar con URL estable: lo sirve Vite en desarrollo y `vite.config.js` lo emite con ese nombre al compilar). Por eso la carpeta `maps/` debe estar en la raíz del sitio publicado. El modo Jugar **no ejecuta** los `.js` de mapas: lee el literal `/*map*/{…}/*endmap*/` y lo valida (`normalizeMap`).
+
+**Formato** (versión 1). Editable (el que guarda el editor en `localStorage`, clave `editor3d:maps`): `{ v, name, size, ground, sky, fog:[cerca,lejos]|null, objects:[{ id, type, x, z, rot, s:[sx,sy,sz], col?, col2?, f? }] }`. Medidas: plataforma/pared = metros; árbol/roca = escala; montaña = `[radioX, alto, radioZ]`; río = `[ancho, –, largo]`; caja/pelota/muñeco = tamaño uniforme. Compacto (el exportado): `{ v, name, size, ground, sky, fog, spawn:[x,z,rot], pal:[colores], o:{ tipo:[[x,z,rot,medidas…,ci?,ci2?,f?]] } }`.
+
+**Añadir un tipo de objeto.** (1) `src/maps/types.js`: entrada en `TYPES` y sus piezas en `PARTS`; (2) `src/maps/visual.js`: geometrías unitarias nuevas en `GEO`; (3) si colisiona o se simula, `src/maps/world.js` y `src/game/game.js`. Editor, juego y exportación leen el mismo catálogo.
 
 ## Asimetría
 En el panel **Cuerpo**, elige un segmento par (brazo, antebrazo, mano, muslo, pantorrilla o pie) y desmarca **Simétrico**: aparece el selector de lado (L/R) y cada lado se edita por separado. Volver a marcar *Simétrico* hace que el lado derecho copie al izquierdo. La pierna más larga fija la altura de la cintura. Los presets `mutante` (brazo derecho enorme) y `pirata` (pierna derecha muy delgada) usan esta función.

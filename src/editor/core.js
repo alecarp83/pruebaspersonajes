@@ -18,7 +18,7 @@ export const bus = {
 
 export const DEFAULT_COLORS = { piel: '#d9b08c', base: '#4a6fa5' };
 export const state = { seg: clone(SEGMENT_DEFAULTS), segR: {}, sym: true, colors: { ...DEFAULT_COLORS }, limits: {}, parts: {}, gear: {}, pose: clone(NEUTRAL), objects: [] };
-export const ctx = { ch: null, selected: null, selPart: null, ikActive: null, markers: true };
+export const ctx = { ch: null, selected: null, selPart: null, ikActive: null, markers: true, mode: 'char' };   // mode: 'char' (editor de personaje) | 'map' (crear mapa)
 let idCounter = 1;
 
 export const heightOf = () => +characterHeight(state.seg, state.segR).toFixed(3);

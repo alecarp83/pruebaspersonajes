@@ -29,3 +29,10 @@ output{width:40px;text-align:right;color:#a7b0c0}
 .chk{display:inline-flex;gap:4px;align-items:center;margin:2px 12px 2px 0}
 .cat{margin:10px 0 4px;font-size:12px;font-weight:600;color:#7fd0b0}.cat:first-child{margin-top:0}
 .row .chk{margin:0;min-width:0}
+/* Modo "Crear mapa": body.map oculta lo exclusivo del personaje; sin él se oculta lo exclusivo del mapa */
+body.map .charOnly{display:none!important}
+body:not(.map) .mapOnly{display:none!important}
+.row input[type=text]{flex:1;min-width:0;background:#12141a;color:#dfe3ea;border:1px solid #434b5c;border-radius:4px;padding:4px 6px}
+.row output{color:#8b94a5;font-size:12px;white-space:nowrap}
+#tag{max-width:70%;white-space:pre-line}
+#mapPick{flex:1;min-width:0}

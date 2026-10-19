@@ -3,10 +3,14 @@ import { download, downloadBlob, validate } from '../io/io.js';
 import { exportGLB } from '../io/gltf.js';
 import { scene, camera, tc, grid, renderer, setView, invalidate } from './scene.js';
 import { ctx, serialize, load, resetAll, select, selectPart, setMarkers, hlPart, heightOf } from './core.js';
-import { undo, redo } from './history.js';
+import { undo as charUndo, redo as charRedo } from './history.js';
+import { undo as mapUndo, redo as mapRedo } from './maps/state.js';
+import { setMapView } from './maps/view.js';
 import { $, D } from './util.js';
 
-document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view, heightOf()));
+// Deshacer/rehacer y vistas actúan sobre el personaje o sobre el mapa según el modo activo
+const undo = () => ctx.mode === 'map' ? mapUndo() : charUndo(), redo = () => ctx.mode === 'map' ? mapRedo() : charRedo();
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => ctx.mode === 'map' ? setMapView(b.dataset.view) : setView(b.dataset.view, heightOf()));
 $('#mode').onchange = e => tc.setMode(e.target.value);
 function applySnap() { const on = $('#snap').checked; tc.setTranslationSnap(on ? .01 : null); tc.setRotationSnap(on ? D.degToRad(5) : null); tc.setScaleSnap(on ? .05 : null); }
 $('#snap').onchange = applySnap; applySnap();
@@ -47,6 +51,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase(), modes = { w: 'translate', e: 'rotate', r: 'scale' };
   if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); }
+  else if (ctx.mode === 'map' && (k === 'delete' || k === 'backspace' || k === 'escape')) { /* en modo mapa los gestiona editor/maps/mode.js */ }
   else if (k === 'delete' || k === 'backspace') $('#oDel')?.click();
   else if (k === 'escape') { select(null); selectPart(null); }
   else if (modes[k]) { tc.setMode(modes[k]); $('#mode').value = tc.mode; }
